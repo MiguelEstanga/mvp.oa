@@ -9,6 +9,7 @@ import { CharacterUserModule } from './app/character_users/character-user.module
 import { ConversationModule } from './app/conversation/conversation.module';
 import { MessageModule } from './app/message/message.module';
 import { OpenaiModule } from './app/openia/openia.module';
+import { UserModule } from './app/user/user.module';
   
 @Module({
   imports: [
@@ -42,7 +43,8 @@ import { OpenaiModule } from './app/openia/openia.module';
     CharacterUserModule,
     ConversationModule,
     MessageModule,
-    OpenaiModule
+    OpenaiModule,
+    UserModule
   ],
   controllers: [AppController],
   providers: [AppService],

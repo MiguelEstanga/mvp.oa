@@ -1,13 +1,10 @@
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
-import { MessageService } from "./message.service";
-import { CreateMessageDto } from "./dto/CreateMessageDto";
- 
- 
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { MessageService } from './message.service';
+import { CreateMessageDto } from './dto/CreateMessageDto';
+
 @Controller('message')
 export class MessageController {
-  constructor(
-    private readonly messageService : MessageService,
-  ) {}
+  constructor(private readonly messageService: MessageService) {}
 
   @Post('test')
   async getMessages() {
@@ -15,19 +12,32 @@ export class MessageController {
   }
 
   @Get('conversation_message')
-  async getMessagesConversation(  @Query('conversation_id') conversation_id: number) {
-    return this.messageService.getMessagesConversation(  conversation_id);
+  async getMessagesConversation(
+    @Query('conversation_id') conversation_id: number,
+  ) {
+    return this.messageService.getMessagesConversation(conversation_id);
   }
-  
+
   @Get(':firabase_uid')
-  async getAllMessageConversation(@Query() firabase_uid :string){
+  async getAllMessageConversation(@Query() firabase_uid: string) {
     return this.messageService.getMessagesByFirebaseUid(firabase_uid);
   }
 
   @Post()
-  async sedMessage(@Body() body: CreateMessageDto  ){
+  async sedMessage(@Body() body: CreateMessageDto) {
     return this.messageService.createMessage(body);
   }
-}
 
- 
+  @Post('test-personality')
+  async testPersonality(
+    @Body()
+    body: {
+      message: string;
+      mvp_type: 'kai' | 'rin';
+      archetype: string;
+      bond_level: number;
+    },
+  ) {
+    return this.messageService.testPersonality(body);
+  }
+}

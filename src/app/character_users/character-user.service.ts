@@ -25,7 +25,7 @@ export class CharacterUserService extends BaseService {
           firebase_uid: characterUser.firebase_uid,
           character_id: characterUser.character_id,
         },
-        relations: ['gamerCharacter'],
+        relations: ['gamerCharacter' , 'user'],
       });
       if (existingCharacterUser) {
         return this.success(

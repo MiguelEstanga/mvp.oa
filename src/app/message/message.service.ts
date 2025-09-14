@@ -5,6 +5,8 @@ import {
   ChatCompletion,
   ChatCompletionMessageParam,
 } from 'openai/resources/chat/completions';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 import { BaseService } from '../core/helper/BaseResponse';
 import { ApiResponse } from '../core/types/ResponseType';
@@ -16,18 +18,114 @@ import { MessageRole } from './types/MessageRoleTypes';
 import { ConversationService } from '../conversation/conversation.service';
 import { DataSource, FindOptionsOrderValue } from 'typeorm';
 import { BondService } from '../bond_service/BondService.service';
+import { User } from '../auth/entities/user.entity';
+
+interface UserPersonalityConfig {
+  mvp_type: string;
+  personality_archetype: string;
+  bond_level: number;
+  personality_active: boolean;
+}
 
 @Injectable()
 export class MessageService extends BaseService {
+  private personalityPrompts = new Map<string, string>();
+  private readonly logger = new Logger(MessageService.name);
+
   constructor(
     @InjectRepository(Message)
     private readonly messageRepository: Repository<Message>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly openAIService: OpenAIService,
     private readonly conversationService: ConversationService,
     private readonly dataSource: DataSource,
     private readonly bondService: BondService,
   ) {
     super();
+    this.loadPersonalityPrompts();
+  }
+
+  private async loadPersonalityPrompts() {
+    try {
+      const promptsPath = path.join(process.cwd(), 'src', 'app', 'prompts');
+
+      // Cargar personalidades base
+      const mvps = ['kai', 'rin'];
+      const archetypes = [
+        'core_personality',
+        'cheerful_buddy',
+        'wise_philosopher',
+        'chaotic_trickster',
+        'heartwright',
+      ];
+
+      for (const mvp of mvps) {
+        for (const archetype of archetypes) {
+          try {
+            const filePath = path.join(promptsPath, mvp, `${archetype}.txt`);
+            const content = await fs.readFile(filePath, 'utf-8');
+            this.personalityPrompts.set(`${mvp}_${archetype}`, content);
+            this.logger.log(`Loaded personality: ${mvp}_${archetype}`);
+          } catch (error) {
+            //this.logger.warn(`Could not load personality file: ${mvp}_${archetype}`);
+            this.logger.warn(`Could not load personality file: ${promptsPath}`);
+          }
+        }
+      }
+
+      // Cargar bond levels
+      for (let i = 1; i <= 10; i++) {
+        try {
+          const filePath = path.join(
+            promptsPath,
+            'bond_levels',
+            `level_${i}.txt`,
+          );
+          const content = await fs.readFile(filePath, 'utf-8');
+          this.personalityPrompts.set(`bond_level_${i}`, content);
+          this.logger.log(`Loaded bond level: ${i}`);
+        } catch (error) {
+          this.logger.warn(`Could not load bond level file: level_${i}`);
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error loading personality prompts:', error);
+    }
+  }
+
+  private getPersonalityPrompt(
+    mvpType: string,
+    archetype: string,
+    bondLevel: number,
+  ): string {
+    // Normalizar nombres de archivos
+    const normalizedArchetype =
+      archetype === 'core' ? 'core_personality' : archetype;
+
+    // Obtener prompt de personalidad
+    const personalityKey = `${mvpType}_${normalizedArchetype}`;
+    const personalityPrompt =
+      this.personalityPrompts.get(personalityKey) ||
+      this.personalityPrompts.get(`${mvpType}_core_personality`) ||
+      `You are ${mvpType}, a helpful AI assistant.`;
+
+    // Obtener prompt de bond level
+    const bondPrompt =
+      this.personalityPrompts.get(`bond_level_${bondLevel}`) ||
+      this.personalityPrompts.get('bond_level_1') ||
+      'You are just getting to know this user.';
+
+    // Combinar prompts
+    return `${personalityPrompt}
+      --- BOND LEVEL CONTEXT ---
+          Current Bond Level: ${bondLevel}
+          ${bondPrompt}
+      --- INSTRUCTIONS ---
+      - Respond according to your personality and current bond level
+      - Remember previous conversations naturally
+      - Adapt your tone based on the user's emotional state
+      - Stay true to your character while being helpful`;
   }
 
   async getMessagesConversation(
@@ -40,13 +138,12 @@ export class MessageService extends BaseService {
         },
         relations: ['conversation'],
       });
-      console.log('messages', messages);
       return this.success('Mensajes recuperados correctamente', messages);
     } catch (error) {
       return this.error('Error al recuperar los mensajes', error);
     }
   }
-  // Este método parece ser solo para pruebas, por lo que lo he renombrado.
+
   async generateTestMessage(): Promise<ApiResponse<ChatCompletion>> {
     try {
       const data = await this.openAIService.generateText([
@@ -61,7 +158,6 @@ export class MessageService extends BaseService {
     }
   }
 
-  // El mensaje de éxito era incorrecto para un método GET, ahora es más descriptivo.
   async getMessagesByFirebaseUid(
     firebase_uid: string,
   ): Promise<ApiResponse<MessageTypes[]>> {
@@ -77,6 +173,42 @@ export class MessageService extends BaseService {
     }
   }
 
+  private async getUserPersonalityConfig(
+    firebase_uid: string,
+  ): Promise<UserPersonalityConfig> {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { firebase_uid },
+      });
+
+      if (!user) {
+        // Crear configuración por defecto si el usuario no existe
+        return {
+          mvp_type: 'kai',
+          personality_archetype: 'core',
+          bond_level: 1,
+          personality_active: true,
+        };
+      }
+
+      return {
+        mvp_type: user.mvp_type || 'kai',
+        personality_archetype: user.personality_archetype || 'core',
+        bond_level: user.bond_level || 1,
+        personality_active: user.personality_active !== false, // Default true
+      };
+    } catch (error) {
+      this.logger.error('Error getting user personality config:', error);
+      // Return default config on error
+      return {
+        mvp_type: 'kai',
+        personality_archetype: 'core',
+        bond_level: 1,
+        personality_active: true,
+      };
+    }
+  }
+
   async createMessage(
     body: CreateMessageDto,
   ): Promise<ApiResponse<MessageTypes[]>> {
@@ -87,7 +219,17 @@ export class MessageService extends BaseService {
     try {
       let customConversationId: number;
 
-      // 1. Si no hay conversation_id, se crea una nueva conversación.
+      // 1. Obtener configuración de personalidad del usuario
+      const userConfig = await this.getUserPersonalityConfig(body.firebase_uid);
+
+      // 2. Determinar personalidad a usar (permitir override desde body)
+      const mvpType = body.mvp_type || userConfig.mvp_type;
+      const archetype =
+        body.personality_archetype || userConfig.personality_archetype;
+      const bondLevel = userConfig.bond_level;
+      const personalityActive = userConfig.personality_active;
+
+      // 3. Si no hay conversation_id, crear nueva conversación
       if (!body.conversation_id) {
         const newConversationResponse =
           await this.conversationService.createConversation({
@@ -103,7 +245,7 @@ export class MessageService extends BaseService {
         customConversationId = body.conversation_id;
       }
 
-      // 2. Se recupera el historial de mensajes de la conversación.
+      // 4. Recuperar historial de mensajes
       const conversationHistory = await this.messageRepository.find({
         where: {
           conversation_id: customConversationId,
@@ -114,28 +256,46 @@ export class MessageService extends BaseService {
         take: 10,
       });
 
-      // 3. Se formatea el historial y el nuevo mensaje del usuario para la API de OpenAI.
-      // Se utiliza un mapeo explícito para asegurar que los tipos de rol sean cadenas literales.
-      const messagesForOpenAI: ChatCompletionMessageParam[] =
-        conversationHistory.map((msg) => ({
-          role: msg.role as 'user' | 'assistant' | 'system',
+      // 5. Construir mensajes para OpenAI
+      const messagesForOpenAI: ChatCompletionMessageParam[] = [];
+
+      // Agregar prompt de personalidad si está activo
+      if (personalityActive) {
+        const personalityPrompt = this.getPersonalityPrompt(
+          mvpType,
+          archetype,
+          bondLevel,
+        );
+        messagesForOpenAI.push({
+          role: 'system',
+          content: personalityPrompt,
+        });
+      }
+
+      // Agregar historial de conversación
+      messagesForOpenAI.push(
+        ...conversationHistory.map((msg) => ({
+          role: msg.role as 'user' | 'assistant',
           content: msg.content,
-        }));
+        })),
+      );
+
+      // Agregar nuevo mensaje del usuario
       messagesForOpenAI.push({
         role: 'user',
         content: body.content,
       });
 
-      // 4. Se genera la respuesta del bot con el contexto completo.
+      // 6. Generar respuesta
       const messageBotResponse =
         await this.openAIService.generateText(messagesForOpenAI);
       const contentBot = messageBotResponse.choices[0].message?.content;
-
+      
       if (!contentBot) {
         throw new Error('No se pudo obtener una respuesta válida de la IA.');
       }
 
-      // 5. Se guardan los nuevos mensajes del usuario y del bot en la transacción.
+      // 7. Guardar mensaje del usuario
       const userMessage = this.messageRepository.create({
         role: MessageRole.USER,
         content: body.content,
@@ -143,29 +303,79 @@ export class MessageService extends BaseService {
         conversation_id: customConversationId,
       });
       const savedUserMessage = await queryRunner.manager.save(userMessage);
-      
+
+      //8. Guardar mensaje del bot con metadata de personalidad
       const botMessage = this.messageRepository.create({
         role: MessageRole.BOT,
         content: contentBot,
         firebase_uid: body.firebase_uid,
         conversation_id: customConversationId,
+        personality_used: personalityActive
+          ? `${mvpType}_${archetype}`
+          : 'core',
+        bond_level_at_time: bondLevel,
       });
       const savedBotMessage = await queryRunner.manager.save(botMessage);
+      // 9. Actualizar bond level
       await this.bondService.updateBondFromMessage(
         body.firebase_uid,
         body.content,
       );
-      // 6. Si todo fue bien, se confirma la transacción.
+
+      // 10. Confirmar transacción
       await queryRunner.commitTransaction();
-      
+
       return this.success('Mensajes enviados y guardados correctamente', [
         savedBotMessage,
+         
       ]);
     } catch (error) {
       await queryRunner.rollbackTransaction();
       return this.error('Error al enviar y guardar el mensaje', error);
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  // Método para testing de personalidades
+  async testPersonality(body: {
+    message: string;
+    mvp_type: 'kai' | 'rin';
+    archetype: string;
+    bond_level: number;
+  }): Promise<ApiResponse<string>> {
+    try {
+      const personalityPrompt = this.getPersonalityPrompt(
+        body.mvp_type,
+        body.archetype,
+        body.bond_level,
+      );
+      this.logger.log(personalityPrompt);
+      this.logger.log(body.message);
+      this.logger.log(body.mvp_type);
+      this.logger.log(body.archetype);
+      this.logger.log(body.bond_level);
+      const messagesForOpenAI: ChatCompletionMessageParam[] = [
+        {
+          role: 'system',
+          content: personalityPrompt,
+        },
+        {
+          role: 'user',
+          content: body.message,
+        },
+      ];
+
+      const response = await this.openAIService.generateText(messagesForOpenAI);
+      const content = response.choices[0].message?.content;
+
+      if (!content) {
+        throw new Error('No se pudo generar respuesta de prueba.');
+      }
+
+      return this.success('Respuesta de prueba generada', content);
+    } catch (error) {
+      return this.error('Error al generar respuesta de prueba', error);
     }
   }
 }
