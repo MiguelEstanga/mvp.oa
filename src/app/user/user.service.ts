@@ -7,7 +7,8 @@ import { UpdateMvpDto } from './dto/update-mvp';
 import { UpdatePersonalityDto } from './dto/update-personality';
 import { ApiResponse } from '../core/types/ResponseType';
 import { UpdateUserDto } from './dto/update-user';
-
+import { UpdateDescriptionDto } from './dto/update-description.dto';
+ 
 @Injectable()
 export class UserService extends BaseService {
   constructor(
@@ -93,25 +94,43 @@ export class UserService extends BaseService {
       }
 
       // 2. Usar el método update para una actualización atómica y eficiente
-      await this.userRepository.update({ firebase_uid: 'ZW2fpa5EvcQQbLH1ogYhw7a0byp1' }, updateData);
+      await this.userRepository.update(
+        { firebase_uid: 'ZW2fpa5EvcQQbLH1ogYhw7a0byp1' },
+        updateData,
+      );
 
       // 3. Opcional: Obtener el usuario actualizado si es necesario
       const updatedUser = await this.userRepository.findOne({
-        where: { firebase_uid: "ZW2fpa5EvcQQbLH1ogYhw7a0byp1" },
+        where: { firebase_uid: 'ZW2fpa5EvcQQbLH1ogYhw7a0byp1' },
       });
+      if (!updatedUser) {
+        return this.error('User not found', null);
+      }
 
-      return this.success('User updated correctly', {
-        "uid": updatedUser?.firebase_uid,
-        "displayName": updatedUser?.username,
-        "email": updatedUser?.email,
-        "personality_archetype": updatedUser?.personality_archetype,
-        "bond_level": updatedUser?.bond_level,
-        "personality_active": updatedUser?.personality_active,
-        "mvp_type": updatedUser?.mvp_type,
-        "birth_day": updatedUser?.birth_day,
-      });
+      return this.success(
+        'User updated correctly',
+        updatedUser,
+      );
     } catch (error) {
       return this.error('Error updating user', error);
+    }
+  }
+
+  async editDescription(body: UpdateDescriptionDto) {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { firebase_uid: body.firebase_uid },
+      });
+
+      if (!user) {
+        return this.error('Usuario no encontrado', null);
+      }
+
+      user.descriptions = body.description;
+      await this.userRepository.save(user);
+      return this.success('Descripcion actualizada correctamente', user);
+    } catch (error) {
+      return this.error('Error al actualizar el usuario', error);
     }
   }
 }

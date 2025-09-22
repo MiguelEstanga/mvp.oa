@@ -26,6 +26,7 @@ export class ConversationService extends BaseService {
           },
           relations: ['messages'],
         });
+        
       return this.success(
         'Conversaciones obtenidas correctamente',
         conversations,
@@ -59,7 +60,7 @@ export class ConversationService extends BaseService {
           id,
         },
       });
-
+      console.log('conversation', conversation);
       if (conversation) {
         return this.success('Conversación creada correctamente', conversation);
       } else {

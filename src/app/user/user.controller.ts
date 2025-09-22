@@ -3,6 +3,7 @@ import { UserService } from "./user.service";
 import { UpdateMvpDto  } from "./dto/update-mvp";
 import { UpdatePersonalityDto  } from "./dto/update-personality";
 import { UpdateUserDto } from "./dto/update-user";
+import { UpdateDescriptionDto } from "./dto/update-description.dto";
 @Controller('user')
 export class UserController {
   constructor(
@@ -39,5 +40,11 @@ export class UserController {
   async editUser(@Body () body: UpdateUserDto) {
     console.log(body);
     return this.userService.editUser(body);
+  }
+
+  @Post("description")
+  async editDescription(@Body () body: UpdateDescriptionDto) {
+    console.log(body);
+    return this.userService.editDescription(body);
   }
 }

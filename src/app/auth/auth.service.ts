@@ -12,6 +12,7 @@ import { User } from './entities/user.entity';
 import { FirebaseAdminService } from '../core/service/firabase/firabaseAdmin.service';
 import { LoginDto } from './dto/LoginDto';
 import * as bcrypt from 'bcrypt';
+import { UserResponseMapper } from '../user/mapper/user-mapper';
 @Injectable()
 export class AuthService {
   constructor(
@@ -48,18 +49,15 @@ export class AuthService {
         .getAuth()
         .createCustomToken(userRecord.uid);
 
+      const responseData = UserResponseMapper.toLoginResponse(
+        user,
+        userRecord,
+        customToken,
+      );
       return {
         success: true,
-        message: 'Login exitoso',
-        data: {
-          uid: userRecord.uid,
-          email: userRecord.email,
-          displayName: userRecord.displayName || user.username,
-          firebaseToken: customToken,
-          mvp_type: user.mvp_type,
-          personality_archetype: user.personality_archetype,
-          bond_level: user.bond_level,
-        },
+        message: 'Login successful',
+        data: responseData,
       };
     } catch (error) {
       console.error('Error en login:', error);
@@ -122,17 +120,22 @@ export class AuthService {
         password: hashedPassword, // 👈 se guarda el hash
       };
 
-      await this.userRepository.save(newUserData);
-      console.log('Usuario guardado en BD:', userRecord.uid);
-
+      const user =await this.userRepository.save(newUserData);
+    
+      console.log('userRecord', userRecord);
       return {
         success: true,
         message: 'Usuario creado exitosamente',
         data: {
-          uid: userRecord.uid,
-          email: userRecord.email,
-          displayName: userRecord.displayName,
-          firebaseToken: customToken,
+          uid: user.firebase_uid,
+          email: user.email,
+          displayName: user.username,
+          token: customToken,
+          mvpType: user.mvp_type,
+          personalityArchetype: user.personality_archetype,
+          bondLevel: user.bond_level, 
+          description: user.descriptions,
+          birth_day: user.birth_day,
         },
       };
     } catch (error) {

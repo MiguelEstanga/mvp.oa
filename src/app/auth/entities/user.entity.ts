@@ -34,6 +34,9 @@ export class User {
   @Column({ type: 'varchar', nullable:true })
   birth_day: string;
 
+  @Column({ type: 'text', nullable:true })
+  descriptions : string;
+
   @Column({ nullable: true })
   password: string;
 

@@ -17,7 +17,7 @@ export class BondService {
    * @param firebaseUid El ID único del usuario de Firebase.
    * @param messageText El texto del mensaje enviado por el usuario.
    */
-  async updateBondFromMessage(firebaseUid: string, messageText: string): Promise<void> {
+  async updateBondFromMessage(firebaseUid: string, messageText: string): Promise<CharacterUser> {
     // 1. Encontrar la entidad del usuario en la base de datos.
     const userCharacter = await this.characterUserRepository.findOne({
       where: { firebase_uid: firebaseUid },
@@ -25,9 +25,9 @@ export class BondService {
 
     if (!userCharacter) {
       console.error(`CharacterUser not found for firebaseUid: ${firebaseUid}`);
-      return;
+      throw new Error('CharacterUser not found for firebaseUid'); 
     }
-
+    console.log('userCharacter', userCharacter);
     // 2. Lógica de Reinicio del Límite Diario.
     const now = new Date();
     const oneDayInMs = 24 * 60 * 60 * 1000;
@@ -94,5 +94,6 @@ export class BondService {
 
     // 7. Guardar los cambios en la base de datos.
     await this.characterUserRepository.save(userCharacter);
+    return userCharacter;
   }
 }

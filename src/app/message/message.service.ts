@@ -19,6 +19,7 @@ import { ConversationService } from '../conversation/conversation.service';
 import { DataSource, FindOptionsOrderValue } from 'typeorm';
 import { BondService } from '../bond_service/BondService.service';
 import { User } from '../auth/entities/user.entity';
+import { CharacterUserService } from '../character_users/character-user.service';
 
 interface UserPersonalityConfig {
   mvp_type: string;
@@ -37,6 +38,7 @@ export class MessageService extends BaseService {
     private readonly messageRepository: Repository<Message>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly characterUserService: CharacterUserService,
     private readonly openAIService: OpenAIService,
     private readonly conversationService: ConversationService,
     private readonly dataSource: DataSource,
@@ -98,6 +100,7 @@ export class MessageService extends BaseService {
     mvpType: string,
     archetype: string,
     bondLevel: number,
+    name: string,
   ): string {
     // Normalizar nombres de archivos
     const normalizedArchetype =
@@ -108,8 +111,8 @@ export class MessageService extends BaseService {
     const personalityPrompt =
       this.personalityPrompts.get(personalityKey) ||
       this.personalityPrompts.get(`${mvpType}_core_personality`) ||
-      `You are ${mvpType}, a helpful AI assistant.`;
-
+      `You are ${name}, a helpful AI assistant.`;
+    console.log('personalityPrompt', personalityPrompt);
     // Obtener prompt de bond level
     const bondPrompt =
       this.personalityPrompts.get(`bond_level_${bondLevel}`) ||
@@ -125,7 +128,9 @@ export class MessageService extends BaseService {
       - Respond according to your personality and current bond level
       - Remember previous conversations naturally
       - Adapt your tone based on the user's emotional state
-      - Stay true to your character while being helpful`;
+      - Stay true to your character while being helpful
+      - your name is ${name}
+      `;
   }
 
   async getMessagesConversation(
@@ -138,6 +143,10 @@ export class MessageService extends BaseService {
         },
         relations: ['conversation'],
       });
+
+      this.logger.log('messages', messages);
+      this.logger.log('messages', messages.length);
+
       return this.success('Mensajes recuperados correctamente', messages);
     } catch (error) {
       return this.error('Error al recuperar los mensajes', error);
@@ -180,7 +189,7 @@ export class MessageService extends BaseService {
       const user = await this.userRepository.findOne({
         where: { firebase_uid },
       });
-
+      this.logger.log('user', user);
       if (!user) {
         // Crear configuración por defecto si el usuario no existe
         return {
@@ -222,7 +231,11 @@ export class MessageService extends BaseService {
       // 1. Obtener configuración de personalidad del usuario
       const userConfig = await this.getUserPersonalityConfig(body.firebase_uid);
 
-      // 2. Determinar personalidad a usar (permitir override desde body)
+      const { data: character } =
+        await this.characterUserService.findByUserAndCharacter(
+          body.firebase_uid,
+        );
+
       const mvpType = body.mvp_type || userConfig.mvp_type;
       const archetype =
         body.personality_archetype || userConfig.personality_archetype;
@@ -253,19 +266,19 @@ export class MessageService extends BaseService {
         order: {
           created_at: 'ASC' as FindOptionsOrderValue,
         },
-        take: 10,
       });
 
       // 5. Construir mensajes para OpenAI
       const messagesForOpenAI: ChatCompletionMessageParam[] = [];
 
-      // Agregar prompt de personalidad si está activo
       if (personalityActive) {
         const personalityPrompt = this.getPersonalityPrompt(
           mvpType,
           archetype,
           bondLevel,
+          character.name,
         );
+        console.log('personalityPrompt', personalityPrompt);
         messagesForOpenAI.push({
           role: 'system',
           content: personalityPrompt,
@@ -290,7 +303,7 @@ export class MessageService extends BaseService {
       const messageBotResponse =
         await this.openAIService.generateText(messagesForOpenAI);
       const contentBot = messageBotResponse.choices[0].message?.content;
-      
+
       if (!contentBot) {
         throw new Error('No se pudo obtener una respuesta válida de la IA.');
       }
@@ -317,17 +330,17 @@ export class MessageService extends BaseService {
       });
       const savedBotMessage = await queryRunner.manager.save(botMessage);
       // 9. Actualizar bond level
-      await this.bondService.updateBondFromMessage(
+      const characterUsers = await this.bondService.updateBondFromMessage(
         body.firebase_uid,
         body.content,
       );
 
       // 10. Confirmar transacción
       await queryRunner.commitTransaction();
-
+      console.log('puntos de experiencia', characterUsers);
       return this.success('Mensajes enviados y guardados correctamente', [
         savedBotMessage,
-         
+        characterUsers,
       ]);
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -349,12 +362,9 @@ export class MessageService extends BaseService {
         body.mvp_type,
         body.archetype,
         body.bond_level,
+        'test',
       );
-      this.logger.log(personalityPrompt);
-      this.logger.log(body.message);
-      this.logger.log(body.mvp_type);
-      this.logger.log(body.archetype);
-      this.logger.log(body.bond_level);
+
       const messagesForOpenAI: ChatCompletionMessageParam[] = [
         {
           role: 'system',

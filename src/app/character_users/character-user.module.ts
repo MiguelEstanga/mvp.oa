@@ -12,5 +12,6 @@ import { CharacterUser } from './entitis/character-user.entiti';
   ],
   controllers: [CharacterUserController],
   providers: [CharacterUserService ],
+  exports: [CharacterUserService],
 })
 export class CharacterUserModule {}
