@@ -23,7 +23,7 @@ export class CharacterUserService extends BaseService {
       const existingCharacterUser = await this.characterUserRepository.findOne({
         where: {
           firebase_uid: characterUser.firebase_uid,
-          character_id: characterUser.character_id,
+         
         },
         relations: ['gamerCharacter' , 'user'],
       });

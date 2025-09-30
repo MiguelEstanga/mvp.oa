@@ -27,6 +27,7 @@ export class AuthService {
 
       // 1️⃣ Verificar usuario en la base de datos
       const user = await this.userRepository.findOne({ where: { email } });
+      console.log('user', user);
       if (!user) {
         throw new NotFoundException(
           'Usuario no encontrado en la base de datos',

@@ -4,6 +4,7 @@ import {
   JoinColumn,
   OneToOne,
   PrimaryGeneratedColumn,
+  ManyToOne,
 } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
 import { GamerCharacter } from 'src/app/game_character/entitis/gamer_character.entiti';
@@ -23,7 +24,7 @@ export class CharacterUser {
   @Column({ length: 128 })
   firebase_uid: string;
 
-  @OneToOne(() => GamerCharacter)
+  @ManyToOne(() => GamerCharacter)
   @JoinColumn({
     name: 'character_id',
     referencedColumnName: 'id',

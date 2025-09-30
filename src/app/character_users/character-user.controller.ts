@@ -14,7 +14,7 @@ export class CharacterUserController {
   async getAllCharacterUsers(
     @Query('firebase_uid') firebase_uid: string,
   ) {
-    console.log('firebase_uid', firebase_uid);
+     console.log(firebase_uid);
      return  await this.characterUserService.findByUserAndCharacter(firebase_uid);
   }
   
