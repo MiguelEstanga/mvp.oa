@@ -13,8 +13,12 @@ import { FirebaseAdminService } from '../core/service/firabase/firabaseAdmin.ser
 import { LoginDto } from './dto/LoginDto';
 import * as bcrypt from 'bcrypt';
 import { UserResponseMapper } from '../user/mapper/user-mapper';
+import { UpdateTokenFcmDto } from './dto/updateTokenFcm.dto';
 @Injectable()
 export class AuthService {
+  getUserByFirebaseUid(uid: string) {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -25,27 +29,43 @@ export class AuthService {
     try {
       const { email, password } = loginDto;
 
-      // 1️⃣ Verificar usuario en la base de datos
+      // Validate email format
+      if (!email || !password) {
+        throw new BadRequestException('Email and password are required');
+      }
+
+      // 1️⃣ Check user in DB
       const user = await this.userRepository.findOne({ where: { email } });
-      console.log('user', user);
       if (!user) {
-        throw new NotFoundException(
-          'Usuario no encontrado en la base de datos',
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      // 2️⃣ Verify password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      // 3️⃣ Verify user in Firebase
+      let userRecord;
+      try {
+        userRecord = await this.firebaseAdminService
+          .getAuth()
+          .getUserByEmail(email);
+      } catch (firebaseError) {
+        // User exists in DB but not in Firebase (inconsistency)
+        console.error('User not found in Firebase:', firebaseError);
+        throw new InternalServerErrorException(
+          'Synchronization error. Please contact support.',
         );
       }
 
-      // 2️⃣ Verificar contraseña
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
-        throw new UnauthorizedException('Contraseña incorrecta');
+      // 4️⃣ Check that Firebase account is not disabled
+      if (userRecord.disabled) {
+        throw new UnauthorizedException('Account disabled');
       }
 
-      // 3️⃣ Obtener usuario en Firebase
-      const userRecord = await this.firebaseAdminService
-        .getAuth()
-        .getUserByEmail(email);
-
-      // 4️⃣ Generar custom token de Firebase
+      // 5️⃣ Generate custom token
       const customToken = await this.firebaseAdminService
         .getAuth()
         .createCustomToken(userRecord.uid);
@@ -55,78 +75,102 @@ export class AuthService {
         userRecord,
         customToken,
       );
+
       return {
         success: true,
         message: 'Login successful',
         data: responseData,
       };
     } catch (error) {
-      console.error('Error en login:', error);
+      console.error('Error in login:', error);
 
       if (
         error instanceof NotFoundException ||
-        error instanceof UnauthorizedException
+        error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
       ) {
         throw error;
       }
 
-      throw new InternalServerErrorException(
-        `Error en el servidor: ${error.message}`,
-      );
+      throw new InternalServerErrorException('Server error');
     }
   }
 
   async registerUser(req: any) {
     let userRecord: any = null;
-
+    console.log(req);
     try {
       const { email, password, displayName } = req;
-      console.log('displayName:', displayName);
 
-      const check = await this.userRepository.findOne({
-        where: { username: email.split('@')[0] },
+      // Validate required fields
+      if (!email || !password) {
+        throw new BadRequestException('Email and password are required');
+      }
+
+      // Validate basic email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        throw new BadRequestException('Invalid email format');
+      }
+
+      // 🔥 STRICT VALIDATION: Check if email ALREADY exists in DB
+      const existingUser = await this.userRepository.findOne({
+        where: { email },
       });
 
-      if (check) {
-        throw new ConflictException('El nombre de usuario ya está en uso');
+      const existingUserName = await this.userRepository.findOne({
+        where: { username: displayName },
+      });
+      if (existingUserName) {
+        throw new ConflictException('Username is already taken');
+      }
+      if (existingUser) {
+        throw new ConflictException('Email is already registered in database');
       }
 
-      // Validar campos requeridos
-      if (!email || !password) {
-        throw new BadRequestException('Email y contraseña son requeridos');
+      // 🔥 STRICT VALIDATION: Check if email ALREADY exists in Firebase
+      try {
+        await this.firebaseAdminService.getAuth().getUserByEmail(email);
+        // If we get here, user exists in Firebase
+        throw new ConflictException('Email is already registered in Firebase');
+      } catch (firebaseError) {
+        // If error is "user not found", it's ok, we can continue
+        if (firebaseError.code !== 'auth/user-not-found') {
+          // Any other Firebase error, we throw it
+          throw firebaseError;
+        }
       }
 
-      // Crear usuario en Firebase
+      // Create user in Firebase
       userRecord = await this.firebaseAdminService.getAuth().createUser({
         email,
-        password, // Firebase maneja su hash propio
-        displayName: email.split('@')[0] || 'Usuario',
+        password,
+        displayName,
       });
 
-      console.log('Usuario creado en Firebase:', userRecord.uid);
+      console.log('User created in Firebase:', userRecord.uid);
 
-      // Generar custom token para el usuario recién creado
+      // Generate custom token
       const customToken = await this.firebaseAdminService
         .getAuth()
         .createCustomToken(userRecord.uid);
 
-      // 🔑 Hashear la contraseña para guardarla en tu BD
+      // Hash password for DB
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Guardar usuario en nuestra base de datos
+      // Save in DB
       const newUserData = {
         firebase_uid: userRecord.uid,
-        username: userRecord.displayName || 'Usuario',
+        username: displayName,
         email: userRecord.email,
-        password: hashedPassword, // 👈 se guarda el hash
+        password: hashedPassword,
       };
 
-      const user =await this.userRepository.save(newUserData);
-    
-      console.log('userRecord', userRecord);
+      const user = await this.userRepository.save(newUserData);
+
       return {
         success: true,
-        message: 'Usuario creado exitosamente',
+        message: 'User created successfully',
         data: {
           uid: user.firebase_uid,
           email: user.email,
@@ -134,42 +178,40 @@ export class AuthService {
           token: customToken,
           mvpType: user.mvp_type,
           personalityArchetype: user.personality_archetype,
-          bondLevel: user.bond_level, 
+          bondLevel: user.bond_level,
           description: user.descriptions,
           birth_day: user.birth_day,
         },
       };
     } catch (error) {
-      console.error('Error en registro:', error);
+      console.error('Error in registration:', error);
 
-      // Si hay error y el usuario se creó en Firebase, eliminarlo
+      // Rollback: delete from Firebase if created
       if (userRecord?.uid) {
         try {
           await this.firebaseAdminService.getAuth().deleteUser(userRecord.uid);
-          console.log('Usuario eliminado de Firebase por error en BD');
+          console.log('User deleted from Firebase due to DB error');
         } catch (deleteError) {
-          console.error('Error eliminando usuario de Firebase:', deleteError);
+          console.error('Error deleting user from Firebase:', deleteError);
         }
       }
 
-      // Manejar errores específicos de Firebase
+      // Firebase errors
       if (error.code === 'auth/email-already-exists') {
-        throw new ConflictException('El email ya está registrado');
+        throw new ConflictException('Email is already registered in Firebase');
       }
 
       if (error.code === 'auth/invalid-email') {
-        throw new BadRequestException('El formato del email no es válido');
+        throw new BadRequestException('Invalid email format');
       }
 
       if (error.code === 'auth/weak-password') {
-        throw new BadRequestException(
-          'La contraseña debe tener al menos 6 caracteres',
-        );
+        throw new BadRequestException('Password must be at least 6 characters');
       }
 
-      // Error de base de datos
+      // DB error (unique constraint)
       if (error.code === '23505') {
-        throw new ConflictException('El usuario ya existe en la base de datos');
+        throw new ConflictException('User already exists in database');
       }
 
       if (
@@ -179,7 +221,28 @@ export class AuthService {
         throw error;
       }
 
-      throw new InternalServerErrorException('Error en el servidor');
+      throw new InternalServerErrorException('Server error');
+    }
+  }
+
+  async updateTokenFcm(data: UpdateTokenFcmDto) {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { firebase_uid: data.firabase_uid },
+      });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+      user.token_fcm = data.token_fcm;
+      await this.userRepository.save(user);
+      return {
+        success: true,
+        message: 'Token updated successfully',
+        data: user,
+      };
+    } catch (error) {
+      console.error('Error in updateTokenFcm:', error);
+      throw new InternalServerErrorException('Server error');
     }
   }
 }
