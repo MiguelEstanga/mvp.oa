@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { ApiResponse } from '../core/types/ResponseType';
 import { BaseService } from '../core/helper/BaseResponse';
 import { CreateConversationDto } from './dto/CreateConversationDto';
+import { ConversationTypes } from './types/conversations';
 
 @Injectable()
 export class ConversationService extends BaseService {
@@ -19,7 +20,7 @@ export class ConversationService extends BaseService {
     firebase_uid: string,
   ): Promise<ApiResponse<ConversationTypes[]>> {
     try {
-      const conversations: ConversationTypes[] =
+      const conversations   =
         await this.conversationRepository.find({
           where: {
             firebase_uid,

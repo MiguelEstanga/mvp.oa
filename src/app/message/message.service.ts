@@ -13,7 +13,7 @@ import { ApiResponse } from '../core/types/ResponseType';
 import { OpenAIService } from '../openia/openia.service';
 import { CreateMessageDto } from './dto/CreateMessageDto';
 import { Message } from './entity/Message';
-import { MessageTypes } from './types/MessageTypes';
+import { MessageInsertTypes, MessageTypes } from './types/MessageTypes';
 import { MessageRole } from './types/MessageRoleTypes';
 import { ConversationService } from '../conversation/conversation.service';
 import { DataSource, FindOptionsOrderValue } from 'typeorm';
@@ -386,6 +386,21 @@ export class MessageService extends BaseService {
       return this.success('Respuesta de prueba generada', content);
     } catch (error) {
       return this.error('Error al generar respuesta de prueba', error);
+    }
+  }
+
+  async insertMessage(message:MessageInsertTypes ) {
+    try {
+      const newMessage = this.messageRepository.create({
+        role: message.role,
+        content: message.content,
+        firebase_uid: message.firebase_uid,
+        conversation_id: message.conversation_id,
+      });
+      const savedMessage = await this.messageRepository.save(newMessage);
+      return this.success('Mensaje guardado correctamente', savedMessage);
+    } catch (error) {
+      return this.error('Error al guardar mensaje', error);
     }
   }
 }

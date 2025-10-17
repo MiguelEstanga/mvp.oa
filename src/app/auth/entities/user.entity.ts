@@ -38,7 +38,7 @@ export class User {
   descriptions : string;
 
   @Column({ type: 'varchar', nullable:true })
-  token_fcm: string;
+  token_fcm?: string;
 
   @Column({ nullable: true })
   password: string;

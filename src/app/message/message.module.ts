@@ -20,5 +20,6 @@ import { CharacterUserModule } from '../character_users/character-user.module';
   ],
   controllers: [MessageController],
   providers: [MessageService],
+  exports: [MessageModule , MessageService],
 })
 export class MessageModule {}

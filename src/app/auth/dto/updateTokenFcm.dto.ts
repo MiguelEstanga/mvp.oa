@@ -7,5 +7,5 @@ export class UpdateTokenFcmDto {
 
   @IsString()
   @IsNotEmpty()
-  firabase_uid: string;
+  firebase_uid : string;
 }

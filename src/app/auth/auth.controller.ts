@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/LoginDto';
 import { RegisterDto } from './dto/RegisterDto';
 import { UpdateTokenFcmDto } from './dto/updateTokenFcm.dto';
+import { InactivityNotificationDto } from './dto/InactivityNotificationDto';
 
 @Controller('auth')
 export class AuthController {
@@ -21,11 +22,16 @@ export class AuthController {
   }
 
   @Post('updateTokenFcm')
-  async getUserByFirebaseUid(data: UpdateTokenFcmDto) {
+  async getUserByFirebaseUid(@Body() data: UpdateTokenFcmDto) {
+    console.log(data);
     try {
       return await this.authService.updateTokenFcm(data);
     } catch (error) {
       console.log(error);
     }
+  }
+  @Post('send-inactivity-notification')
+  async sendInactivityNotification(@Body() body: InactivityNotificationDto) {
+    return this.authService.sendInactivityNotification(body);
   }
 }
