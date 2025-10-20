@@ -49,7 +49,8 @@ export class AuthService {
 
       // 1️⃣ Check user in DB
       const user = await this.userRepository.findOne({ where: { email } });
-      if (!user) {
+      console.log(`estado de la cuenta ${user}`)
+      if (!user) { 
         throw new UnauthorizedException('Invalid credentials');
       }
 
@@ -111,7 +112,7 @@ export class AuthService {
 
   async registerUser(req: any) {
     let userRecord: any = null;
-    console.log(req);
+     
     try {
       const { email, password, displayName } = req;
 
@@ -176,6 +177,7 @@ export class AuthService {
         firebase_uid: userRecord.uid,
         username: displayName,
         email: userRecord.email,
+        statte:1,
         password: hashedPassword,
       };
 
@@ -194,6 +196,7 @@ export class AuthService {
           bondLevel: user.bond_level,
           description: user.descriptions,
           birth_day: user.birth_day,
+          state:user.state
         },
       };
     } catch (error) {
@@ -257,6 +260,52 @@ export class AuthService {
     } catch (error) {
       console.error('Error in updateTokenFcm:', error);
       throw new InternalServerErrorException('Server error');
+    }
+  }
+
+  //updated state acount
+
+  async updateStateAcount(firebase_uid: string, state: number) {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { firebase_uid },
+      });
+
+      if (!user) {
+        throw new NotFoundException('user with firabase_uid');
+      }
+      user.state = state;
+      const updateUser = await this.userRepository.save(user);
+      return {
+        success:true,
+        stateAcount:updateUser.state
+      };
+      
+    } catch (error) {
+      console.error('Error in updateStateAcount:', error);
+      throw new InternalServerErrorException('Server error');
+    }
+  }
+  //
+  async getStateAcount(firebase_uid: string) {
+    try {
+      const acountState = await this.userRepository.findOne({
+        where: {
+          firebase_uid,
+        },
+      });
+
+      if (!acountState) {
+        throw new InternalServerErrorException('server error user not fount');
+      }
+
+      return {
+        success:true,
+        stateAcount:acountState.state
+      };
+    } catch (error) {
+      console.log('error in getStateAcount');
+      throw new InternalServerErrorException('error getStateAcount');
     }
   }
 

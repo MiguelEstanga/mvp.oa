@@ -7,11 +7,13 @@ export class UserResponseMapper {
       uid: userRecord.uid,
       email: userRecord.email,
       displayName: userRecord.displayName || user.username,
-      firebaseToken: customToken,
+    
       mvp_type: user.mvp_type,
       personality_archetype: user.personality_archetype,
       bond_level: user.bond_level,
       description: user.descriptions,
+      state:user.state,
+        firebaseToken: customToken,
     };
   }
 }

@@ -25,7 +25,7 @@ import { UserModule } from './app/user/user.module';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-          url: configService.get<string>('DATABASE_URL'), // <-- Aquí lee la URL
+          url: configService.get<string>('DATABASE_URL'), 
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: configService.get<string>('NODE_ENV') !== 'production',
         logging: configService.get<string>('NODE_ENV') === 'development',

@@ -40,6 +40,9 @@ export class User {
   @Column({ type: 'varchar', nullable:true })
   token_fcm?: string;
 
+  @Column({type:'integer' , default:0})
+  state:number
+
   @Column({ nullable: true })
   password: string;
 

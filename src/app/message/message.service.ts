@@ -40,7 +40,7 @@ export class MessageService extends BaseService {
     private readonly userRepository: Repository<User>,
     private readonly characterUserService: CharacterUserService,
     private readonly openAIService: OpenAIService,
-    private readonly conversationService: ConversationService,
+    private readonly conversationService: ConversationService, 
     private readonly dataSource: DataSource,
     private readonly bondService: BondService,
   ) {
@@ -129,6 +129,7 @@ export class MessageService extends BaseService {
       - Remember previous conversations naturally
       - Adapt your tone based on the user's emotional state
       - Stay true to your character while being helpful
+      - Messages can only have a minimum of 45 words.
       - your name is ${name}
       `;
   }
@@ -298,7 +299,7 @@ export class MessageService extends BaseService {
         role: 'user',
         content: body.content,
       });
-
+      console.log('generate menssage' , messagesForOpenAI);
       // 6. Generar respuesta
       const messageBotResponse =
         await this.openAIService.generateText(messagesForOpenAI);

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CharacterUser } from './entitis/character-user.entiti';
 import { Repository } from 'typeorm';
@@ -6,12 +6,15 @@ import { CharacterUserTypes } from './types/CharacterUserType';
 import { CreateCharacterUserDto } from './dto/CharacterUserDto';
 import { BaseService } from '../core/helper/BaseResponse';
 import { ApiResponse } from '../core/types/ResponseType';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class CharacterUserService extends BaseService {
   constructor(
     @InjectRepository(CharacterUser)
     private readonly characterUserRepository: Repository<CharacterUser>,
+    @Inject(forwardRef(() => AuthService))
+    private readonly userServices: AuthService, // 👈 Y aquí lo inyectas
   ) {
     super();
   }
@@ -23,9 +26,8 @@ export class CharacterUserService extends BaseService {
       const existingCharacterUser = await this.characterUserRepository.findOne({
         where: {
           firebase_uid: characterUser.firebase_uid,
-         
         },
-        relations: ['gamerCharacter' , 'user'],
+        relations: ['gamerCharacter', 'user'],
       });
       if (existingCharacterUser) {
         return this.success(
@@ -41,6 +43,7 @@ export class CharacterUserService extends BaseService {
         bond_points: 0,
         firebase_uid: characterUser.firebase_uid,
       });
+      this.userServices.updateStateAcount(characterUser.firebase_uid, 1);
       const savedCharacterUser =
         await this.characterUserRepository.save(newCharacterUser);
       return this.success(

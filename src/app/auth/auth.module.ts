@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { FirebaseAdminService } from '../core/service/firabase/firabaseAdmin.service';
@@ -18,6 +18,6 @@ import { MessageModule } from '../message/message.module';
   controllers: [AuthController],
   providers: [AuthService, FirebaseAdminService , OpenAIService  ],
 
-  exports: [AuthService], // Por si otros módulos lo necesitan
+  exports: [AuthService  ], 
 })
 export class AuthModule {}
