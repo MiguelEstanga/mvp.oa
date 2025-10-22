@@ -12,6 +12,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         transport: {
+          family: 4,
           host: configService.get('MAIL_HOST'),
           port: configService.get('MAIL_PORT'),
           secure: configService.get('MAIL_PORT') === 465, // true para 465, false para otros puertos
