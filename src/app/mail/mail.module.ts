@@ -31,4 +31,15 @@ import { MailerModule } from '@nestjs-modules/mailer';
   providers: [MailService],
   exports: [MailService],
 })
-export class MailModule {}
+export class MailModule {
+  constructor(private readonly mailService: MailService) {
+    console.log('mail service');
+     const configService = new ConfigService();
+    console.log(configService.get('MAIL_HOST'));
+    console.log(configService.get('MAIL_PORT'));
+    console.log(configService.get('MAIL_USER'));
+    console.log(configService.get('MAIL_PASSWORD'));
+    console.log(configService.get('MAIL_FROM_NAME'));
+    console.log(configService.get('MAIL_FROM'));
+  }
+}
