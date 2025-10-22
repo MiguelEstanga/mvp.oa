@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { FirebaseAdminService } from '../core/service/firabase/firabaseAdmin.service';
 import { LoginDto } from './dto/LoginDto';
@@ -24,8 +24,16 @@ import { CreateMessageDto } from '../message/dto/CreateMessageDto';
 import { MessageInsertTypes } from '../message/types/MessageTypes';
 import { MessageRole } from '../message/types/MessageRoleTypes';
 import { CreateConversationDto } from '../conversation/dto/CreateConversationDto';
+import { MailService } from '../mail/mail.service';
+import { ForgotPasswordDto } from './dto/ForgotPasswordDto';
+import { ApiResponse } from '../core/types/ResponseType';
+import { BaseService } from '../core/helper/BaseResponse';
+import { Logger } from '@nestjs/common';
+import { ResetPasswordDto } from './dto/ResetPasswordDto';
+import { VerifyCodeDto } from './dto/VerifyCodeDto';
+
 @Injectable()
-export class AuthService {
+export class AuthService extends BaseService {
   getUserByFirebaseUid(uid: string) {
     throw new Error('Method not implemented.');
   }
@@ -36,7 +44,10 @@ export class AuthService {
     private readonly openAIService: OpenAIService,
     private readonly conversationService: ConversationService,
     private readonly messageService: MessageService,
-  ) {}
+    private readonly mailService: MailService,
+  ) {
+    super();
+  }
 
   async loginUser(loginDto: LoginDto) {
     try {
@@ -49,8 +60,8 @@ export class AuthService {
 
       // 1️⃣ Check user in DB
       const user = await this.userRepository.findOne({ where: { email } });
-      console.log(`estado de la cuenta ${user}`)
-      if (!user) { 
+      console.log(`estado de la cuenta ${user}`);
+      if (!user) {
         throw new UnauthorizedException('Invalid credentials');
       }
 
@@ -112,7 +123,7 @@ export class AuthService {
 
   async registerUser(req: any) {
     let userRecord: any = null;
-     
+
     try {
       const { email, password, displayName } = req;
 
@@ -177,7 +188,7 @@ export class AuthService {
         firebase_uid: userRecord.uid,
         username: displayName,
         email: userRecord.email,
-        statte:1,
+        statte: 1,
         password: hashedPassword,
       };
 
@@ -196,7 +207,7 @@ export class AuthService {
           bondLevel: user.bond_level,
           description: user.descriptions,
           birth_day: user.birth_day,
-          state:user.state
+          state: user.state,
         },
       };
     } catch (error) {
@@ -241,6 +252,123 @@ export class AuthService {
     }
   }
 
+  private generateResetCode(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  async forgotPassword(
+    forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<ApiResponse<any>> {
+    try {
+      const { email } = forgotPasswordDto;
+
+      // Buscar usuario por email
+      const user = await this.userRepository.findOne({ where: { email } });
+
+      if (!user) {
+        return this.success(
+          'Si el email está registrado, recibirás un código de recuperación',
+          null,
+        );
+      }
+
+      // Generar código de 6 dígitos
+      const resetCode = this.generateResetCode();
+      const resetCodeExpires = new Date();
+      resetCodeExpires.setMinutes(resetCodeExpires.getMinutes() + 15); // Expira en 15 minutos
+
+      user.reset_password_code = resetCode;
+      user.reset_password_expires = resetCodeExpires;
+
+      this.userRepository.save(user);
+      // solo cuando el smtp este listo
+      const mail = await this.mailService.sendPasswordResetCode(
+        email,
+        resetCode,
+        user.username || user.email,
+      );
+
+      if (mail.success) {
+        return this.success(
+          'Si el email está registrado, recibirás un código de recuperación',
+          { email },
+        );
+      }
+
+      return this.error('Error al enviar el código de recuperación', mail);
+    } catch (error) {
+      Logger.error('Error en forgotPassword:', error);
+      return this.error('Error al procesar la solicitud', error);
+    }
+  }
+  async verifyCode(verifyCodeDto: VerifyCodeDto) {
+    try {
+      const { email, code } = verifyCodeDto;
+      const user = await this.userRepository.findOne({ where: { email } });
+
+      if (!user) {
+        return this.error('No existe un usuario con ese email');
+      }
+
+      if (user.reset_password_code !== code) {
+        return this.error(
+          'El código de verificación no coincide con el registro',
+        );
+      }
+
+      return this.success('codigo confirmado');
+    } catch (error) {
+      Logger.error('Error en verifyCode:', error);
+      return this.error('Error al procesar la solicitud', error);
+    }
+  }
+  /**
+   * Paso 2: Validar código y cambiar contraseña
+   */
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<ApiResponse<any>> {
+    try {
+      const { email, code, newPassword } = resetPasswordDto;
+
+      // Buscar usuario con código válido y no expirado
+      const user = await this.userRepository.findOne({
+        where: {
+          email,
+        },
+      });
+
+      if (!user || user.reset_password_code !== code) {
+        throw new BadRequestException('code expired or invalid');
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Actualizar contraseña y limpiar código
+      user.password = hashedPassword;
+      user.reset_password_code = null;
+      user.reset_password_expires = null;
+      await this.userRepository.save(user);
+
+      // Enviar confirmación por email
+      await this.mailService.sendPasswordChangedConfirmation(
+        email,
+        user.username || user.email,
+      );
+
+      return this.success('Contraseña actualizada correctamente', {
+        email,
+        changed: true,
+      });
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        return this.error(error.message, null);
+      }
+
+      return this.error('Error al restablecer la contraseña', error);
+    }
+  }
+
   async updateTokenFcm(data: UpdateTokenFcmDto) {
     try {
       const { firebase_uid, token_fcm } = data;
@@ -252,6 +380,34 @@ export class AuthService {
       }
       user.token_fcm = token_fcm;
       await this.userRepository.save(user);
+      return {
+        success: true,
+        message: 'Token updated successfully',
+        data: user,
+      };
+    } catch (error) {
+      console.error('Error in updateTokenFcm:', error);
+      throw new InternalServerErrorException('Server error');
+    }
+  }
+
+  async verifyTokenFcm(firebase_uid: string) {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { firebase_uid },
+      });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (user.token_fcm) {
+        return {
+          success: false,
+          message: 'Token not updated',
+          data: user,
+        };
+      }
+
       return {
         success: true,
         message: 'Token updated successfully',
@@ -277,10 +433,9 @@ export class AuthService {
       user.state = state;
       const updateUser = await this.userRepository.save(user);
       return {
-        success:true,
-        stateAcount:updateUser.state
+        success: true,
+        stateAcount: updateUser.state,
       };
-      
     } catch (error) {
       console.error('Error in updateStateAcount:', error);
       throw new InternalServerErrorException('Server error');
@@ -300,8 +455,8 @@ export class AuthService {
       }
 
       return {
-        success:true,
-        stateAcount:acountState.state
+        success: true,
+        stateAcount: acountState.state,
       };
     } catch (error) {
       console.log('error in getStateAcount');

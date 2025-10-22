@@ -13,12 +13,15 @@ import { LoginDto } from './dto/LoginDto';
 import { RegisterDto } from './dto/RegisterDto';
 import { UpdateTokenFcmDto } from './dto/updateTokenFcm.dto';
 import { InactivityNotificationDto } from './dto/InactivityNotificationDto';
+import { ForgotPasswordDto } from './dto/ForgotPasswordDto';
+import { ResetPasswordDto } from './dto/ResetPasswordDto';
+import { VerifyCodeDto } from './dto/VerifyCodeDto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Get('state-acount/:firebase_uid') 
+  @Get('state-acount/:firebase_uid')
   async getStateAcount(@Param('firebase_uid') firebase_uid: string) {
     console.log(firebase_uid);
     try {
@@ -34,7 +37,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async loginUser(@Body() loginDto: LoginDto) {
-    console.log('login')
+    console.log('login');
     return await this.authService.loginUser(loginDto);
   }
 
@@ -53,8 +56,35 @@ export class AuthController {
       console.log(error);
     }
   }
+
+  @Get('verify-token-fcm/:firabase_uid')
+  async verifyTokenFcm(@Param('firabase_uid') firebase_uid: string) {
+    console.log(firebase_uid);
+    try {
+      return await this.authService.verifyTokenFcm(firebase_uid);
+    } catch (error) {
+      console.log(error);
+    }
+  }
   @Post('send-inactivity-notification')
   async sendInactivityNotification(@Body() body: InactivityNotificationDto) {
     return this.authService.sendInactivityNotification(body);
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return await this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    console.log(resetPasswordDto);
+    return await this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Post('verify-code')
+  async verifyCode(@Body() verifyCodeDto: VerifyCodeDto) {
+    console.log(verifyCodeDto);
+    return await this.authService.verifyCode(verifyCodeDto);
   }
 }

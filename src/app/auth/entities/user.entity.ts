@@ -26,25 +26,31 @@ export class User {
   bond_level: number;
 
   @Column({ type: 'bool', default: true })
-  personality_active : boolean;
+  personality_active: boolean;
 
   @Column({ type: 'text', default: 'kai' })
   mvp_type: string;
 
-  @Column({ type: 'varchar', nullable:true })
+  @Column({ type: 'varchar', nullable: true })
   birth_day: string;
 
-  @Column({ type: 'text', nullable:true })
-  descriptions : string;
+  @Column({ type: 'text', nullable: true })
+  descriptions: string;
 
-  @Column({ type: 'varchar', nullable:true })
+  @Column({ type: 'varchar', nullable: true })
   token_fcm?: string;
 
-  @Column({type:'integer' , default:0})
-  state:number
+  @Column({ type: 'integer', default: 0 })
+  state: number;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  reset_password_code: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  reset_password_expires: Date | null;
 
   @Column({ nullable: true })
-  password: string;
+  password?: string;
 
   @CreateDateColumn()
   created_at: Date;

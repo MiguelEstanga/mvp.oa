@@ -8,6 +8,7 @@ import { OpenAIService } from '../openia/openia.service';
 import { ConversationService } from '../conversation/conversation.service';
 import { ConversationModule } from '../conversation/conversation.module';
 import { MessageModule } from '../message/message.module';
+import { MailService } from '../mail/mail.service';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { MessageModule } from '../message/message.module';
     MessageModule
   ],
   controllers: [AuthController],
-  providers: [AuthService, FirebaseAdminService , OpenAIService  ],
+  providers: [AuthService, FirebaseAdminService , OpenAIService , MailService ],
 
   exports: [AuthService  ], 
 })

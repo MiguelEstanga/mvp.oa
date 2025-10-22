@@ -10,6 +10,7 @@ import { ConversationModule } from './app/conversation/conversation.module';
 import { MessageModule } from './app/message/message.module';
 import { OpenaiModule } from './app/openia/openia.module';
 import { UserModule } from './app/user/user.module';
+import { MailModule } from './app/mail/mail.module';
   
 @Module({
   imports: [
@@ -44,7 +45,8 @@ import { UserModule } from './app/user/user.module';
     ConversationModule,
     MessageModule,
     OpenaiModule,
-    UserModule
+    UserModule,
+    MailModule
   ],
   controllers: [AppController],
   providers: [AppService],
