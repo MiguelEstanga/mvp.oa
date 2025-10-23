@@ -11,7 +11,7 @@ export class FirebaseAdminService implements OnModuleInit {
         // Intenta primero con GOOGLE_APPLICATION_CREDENTIALS (para desarrollo local)
         const googleCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
         
-        if (googleCredentials) {
+        if (false) {
           console.log('📝 Usando GOOGLE_APPLICATION_CREDENTIALS');
           
           // Parsea la cadena JSON de forma segura
