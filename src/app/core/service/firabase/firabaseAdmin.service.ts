@@ -14,19 +14,19 @@ export class FirebaseAdminService implements OnModuleInit {
         if (false) {
           console.log('📝 Usando GOOGLE_APPLICATION_CREDENTIALS');
           
-          // Parsea la cadena JSON de forma segura
-          const serviceAccount = JSON.parse(googleCredentials);
+          // // Parsea la cadena JSON de forma segura
+          // const serviceAccount = JSON.parse(googleCredentials);
           
-          // Reemplaza escapes de saltos de línea
-          if (serviceAccount.private_key) {
-            serviceAccount.private_key = serviceAccount.private_key
-              .replace(/\\\\n/g, '\n')
-              .replace(/\\n/g, '\n');
-          }
+          // // Reemplaza escapes de saltos de línea
+          // if (serviceAccount.private_key) {
+          //   serviceAccount.private_key = serviceAccount.private_key
+          //     .replace(/\\\\n/g, '\n')
+          //     .replace(/\\n/g, '\n');
+          // }
 
-          this.app = admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-          });
+          // this.app = admin.initializeApp({
+          //   credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+          // });
           
           console.log('✅ Firebase inicializado con JSON');
         } else {
