@@ -14,9 +14,7 @@ import { MailModule } from './app/mail/mail.module';
   
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true, // ¡Este es el punto clave!
-    }),
+   
 
     ConfigModule.forRoot({
       isGlobal: true,
