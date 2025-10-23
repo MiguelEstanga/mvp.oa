@@ -8,30 +8,29 @@ export class FirebaseAdminService implements OnModuleInit {
   onModuleInit() {
     if (!admin.apps.length) {
       try {
-        // Método 1: Intentar con JSON completo (para local)
+        // Intenta primero con GOOGLE_APPLICATION_CREDENTIALS (para desarrollo local)
         const googleCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
         
         if (googleCredentials) {
-          console.log('📝 Usando GOOGLE_APPLICATION_CREDENTIALS (JSON)');
+          console.log('📝 Usando GOOGLE_APPLICATION_CREDENTIALS');
           
           // Parsea la cadena JSON de forma segura
           const serviceAccount = JSON.parse(googleCredentials);
           
-          // Reemplaza los escapes de saltos de línea
+          // Reemplaza escapes de saltos de línea
           if (serviceAccount.private_key) {
             serviceAccount.private_key = serviceAccount.private_key
-              .replace(/\\\\n/g, '\n')  // Para Railway (\\n)
-              .replace(/\\n/g, '\n');    // Para otros casos (\n)
+              .replace(/\\\\n/g, '\n')
+              .replace(/\\n/g, '\n');
           }
 
           this.app = admin.initializeApp({
             credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
           });
           
-          console.log('✅ Firebase inicializado con JSON completo');
-          
+          console.log('✅ Firebase inicializado con JSON');
         } else {
-          // Método 2: Variables separadas (fallback para Railway)
+          // Usa variables separadas (para Railway)
           console.log('📝 Usando variables separadas (FIREBASE_*)');
           
           const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -42,7 +41,7 @@ export class FirebaseAdminService implements OnModuleInit {
             throw new Error(
               'Falta configuración de Firebase. Define GOOGLE_APPLICATION_CREDENTIALS ' +
               'o las variables FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY y FIREBASE_CLIENT_EMAIL'
-            );
+            ); 
           }
 
           this.app = admin.initializeApp({
@@ -56,12 +55,11 @@ export class FirebaseAdminService implements OnModuleInit {
           console.log('✅ Firebase inicializado con variables separadas');
         }
 
-        console.log('🎉 Firebase Admin inicializado correctamente');
+        console.log('🎉 Firebase Admin listo');
         
       } catch (error) {
-        console.error('❌ Error al inicializar Firebase Admin:', error);
-        console.error('Stack:', error.stack);
-        throw new Error(`Error al inicializar Firebase: ${error.message}`);
+        console.error('❌ Error al inicializar Firebase:', error.message);
+        throw error;
       }
     } else {
       this.app = admin.app();
