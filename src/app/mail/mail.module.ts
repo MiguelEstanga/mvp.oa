@@ -13,16 +13,16 @@ import { MailerModule } from '@nestjs-modules/mailer';
       useFactory: (configService: ConfigService) => ({
         transport: {
           family: 4,
-          host: configService.get('MAIL_HOST'),
-          port: configService.get('MAIL_PORT'),
+          host: 'smtp.gmail.com',
+          port: 465,
           secure: configService.get('MAIL_PORT') === 465, // true para 465, false para otros puertos
           auth: {
-            user: configService.get('MAIL_USER'),
-            pass: configService.get('MAIL_PASSWORD'),
+            user:  'miguelestanga12@gmail.com',
+            pass:  'jawueiwvemgreygs',
           },
         },
         defaults: {
-          from: `"${configService.get('MAIL_FROM_NAME')}" <${configService.get('MAIL_FROM')}>`,
+          from: `miguelestanga12@gmail.com`,
         },
       }),
     }),
