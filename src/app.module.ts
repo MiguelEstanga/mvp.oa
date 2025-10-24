@@ -11,6 +11,7 @@ import { MessageModule } from './app/message/message.module';
 import { OpenaiModule } from './app/openia/openia.module';
 import { UserModule } from './app/user/user.module';
 import { MailModule } from './app/mail/mail.module';
+import { FirebaseModule } from './app/core/service/firabase/firabaseAdmin.module';
   
 @Module({
   imports: [
@@ -36,7 +37,7 @@ import { MailModule } from './app/mail/mail.module';
       }),
       inject: [ConfigService],
     }),
-
+    FirebaseModule,
     AuthModule,
     GamerCharacterModule,
     CharacterUserModule,

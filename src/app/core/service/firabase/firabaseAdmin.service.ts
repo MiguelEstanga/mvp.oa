@@ -1,18 +1,19 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import * as admin from 'firebase-admin';
-
+import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class FirebaseAdminService implements OnModuleInit {
   private app: admin.app.App;
 
+    constructor(private readonly configService: ConfigService) {}
  onModuleInit() {
   if (!admin.apps.length) {
     try {
       console.log('📝 Inicializando Firebase...');
       
-      const projectId = process.env.FIREBASE_PROJECT_ID;
-      let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+      const projectId =this.configService.get<string>('FIREBASE_PROJECT_ID');;
+      let privateKey =this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+      const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
 
       if (!projectId || !privateKey || !clientEmail) {
         throw new Error('Faltan variables de entorno de Firebase');
@@ -41,7 +42,7 @@ export class FirebaseAdminService implements OnModuleInit {
         } as admin.ServiceAccount),
       });
       
-      console.log('✅ Firebase inicializado correctamente');
+      console.log('✅ Firebase inicializado correctamentess');
       console.log('🎉 Firebase Admin listo');
     } catch (error) {
       console.error('❌ Error al inicializar Firebase:', error.message);
