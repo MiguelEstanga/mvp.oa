@@ -45,6 +45,13 @@ export class FirebaseAdminService implements OnModuleInit {
       console.log('✅ Firebase inicializado correctamentess');
       console.log('🎉 Firebase Admin listo');
     } catch (error) {
+       const projectId =this.configService.get<string>('FIREBASE_PROJECT_ID');;
+      let privateKey =this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+      const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+
+      console.error('❌ Error al inicializar Firebase:', projectId);
+      console.error('❌ Error al inicializar Firebase:', privateKey);
+      console.error('❌ Error al inicializar Firebase:', clientEmail);
       console.error('❌ Error al inicializar Firebase:', error.message);
       console.error('Stack completo:', error.stack);
       throw error;
