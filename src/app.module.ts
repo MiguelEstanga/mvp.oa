@@ -15,14 +15,11 @@ import { MailModule } from './app/mail/mail.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, // ¡Este es el punto clave!
+      isGlobal: false, // ¡Este es el punto clave!
         
     }),
 
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-    }),
+    
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
