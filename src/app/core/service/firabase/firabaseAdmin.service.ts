@@ -55,7 +55,7 @@ export class FirebaseAdminService implements OnModuleInit {
           this.app = admin.initializeApp({
             credential: admin.credential.cert({
               projectId: projectId,
-              privateKey: privateKey.replace(/\\n/g, '\n'),
+              privateKey: privateKey ,
               clientEmail: clientEmail,
             } as admin.ServiceAccount),
           });
