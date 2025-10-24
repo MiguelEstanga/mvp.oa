@@ -14,9 +14,9 @@ import { MailModule } from './app/mail/mail.module';
   
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: false, // ¡Este es el punto clave!
-        
+     ConfigModule.forRoot({
+      isGlobal: true, // 👈 Esto hace que ConfigService esté disponible en TODOS los módulos
+      envFilePath: '.env',
     }),
 
     
