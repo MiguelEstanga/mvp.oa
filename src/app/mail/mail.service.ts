@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
+import { MailerService } from '@nestjs-modules/mailer';
 import { BaseService } from '../core/helper/BaseResponse';
 import { ApiResponse } from '../core/types/ResponseType';
 import { resetPasswordTemplate } from './templates/reset-password.template';
@@ -8,18 +7,9 @@ import { resetPasswordTemplate } from './templates/reset-password.template';
 @Injectable()
 export class MailService extends BaseService {
   private readonly logger = new Logger(MailService.name);
-  private resend: Resend;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(private readonly mailerService: MailerService) {
     super();
-    
-    const apiKey = this.configService.get<string>('RESEND_API_KEY');
-    if (!apiKey) {
-      this.logger.warn('⚠️ RESEND_API_KEY no está configurada - Los emails no se enviarán');
-    } else {
-      this.resend = new Resend(apiKey);
-      this.logger.log('✅ Resend inicializado correctamente');
-    }
   }
 
   /**
@@ -31,33 +21,22 @@ export class MailService extends BaseService {
     name?: string,
   ): Promise<ApiResponse<any>> {
     try {
-      if (!this.resend) {
-        throw new Error('Resend no está configurado');
-      }
-
       const html = resetPasswordTemplate(resetCode, name);
 
-      const { data, error } = await this.resend.emails.send({
-        from: 'MVP.IA <onboarding@resend.dev>', // Cambiar cuando tengas dominio verificado
-        to: [email],
+      const result = await this.mailerService.sendMail({
+        to: email,
         subject: '🔒 Código de recuperación de contraseña',
         html,
       });
 
-      if (error) {
-        this.logger.error(`Error de Resend al enviar a ${email}:`, error);
-        throw new Error(error.message);
-      }
-
-      this.logger.log(`✅ Código de recuperación enviado a ${email} (ID: ${data?.id})`);
+      this.logger.log(`Código de recuperación enviado a ${email}`);
       return this.success('Código de recuperación enviado correctamente', {
         email,
         sent: true,
-        messageId: data?.id,
       });
     } catch (error) {
       this.logger.error(
-        `❌ Error al enviar código de recuperación a ${email}:`,
+        `Error al enviar código de recuperación a ${email}:`,
         error,
       );
       return this.error('Error al enviar el código de recuperación', error);
@@ -72,10 +51,6 @@ export class MailService extends BaseService {
     name?: string,
   ): Promise<ApiResponse<any>> {
     try {
-      if (!this.resend) {
-        throw new Error('Resend no está configurado');
-      }
-
       const html = `
         <!DOCTYPE html>
         <html>
@@ -135,25 +110,19 @@ export class MailService extends BaseService {
         </html>
       `;
 
-      const { data, error } = await this.resend.emails.send({
-        from: 'MVP.IA <onboarding@resend.dev>',
-        to: [email],
+      const result = await this.mailerService.sendMail({
+        to: email,
         subject: '✅ Tu contraseña ha sido actualizada',
         html,
       });
 
-      if (error) {
-        this.logger.error(`Error de Resend al enviar confirmación a ${email}:`, error);
-        throw new Error(error.message);
-      }
-
-      this.logger.log(`✅ Confirmación de cambio de contraseña enviada a ${email} (ID: ${data?.id})`);
-      return this.success('Confirmación enviada correctamente', {
-        messageId: data?.id,
-      });
+      this.logger.log(
+        `Confirmación de cambio de contraseña enviada a ${email}`,
+      );
+      return this.success('Confirmación enviada correctamente', result);
     } catch (error) {
       this.logger.error(
-        `❌ Error al enviar confirmación de cambio a ${email}:`,
+        `Error al enviar confirmación de cambio a ${email}:`,
         error,
       );
       return this.error('Error al enviar confirmación', error);

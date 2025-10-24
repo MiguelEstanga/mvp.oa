@@ -9,28 +9,33 @@ import { MailerModule } from '@nestjs-modules/mailer';
   imports: [
     MailerModule.forRootAsync({
       imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
+      useFactory: async (configService: ConfigService) => ({
         transport: {
-          family: 4,
-          host: configService.get('MAIL_HOST'),
-          port: configService.get('MAIL_PORT'),
-          secure: true, // true para 465, false para otros puertos
+          host: 'smtp.gmail.com',
+          port: 587,
+          secure: false, // true para 465, false para otros puertos
           auth: {
-            user:'apikey',
-            pass: configService.get('MAIL_PASSWORD'),
+            user: configService.get<string>('MAIL_USER'),
+            pass: configService.get<string>('MAIL_PASSWORD'), // 👈 App Password aquí
           },
           tls: {
             rejectUnauthorized: false,
           },
+          // Configuración adicional para Railway
+          connectionTimeout: 30000,
+          greetingTimeout: 30000,
+          socketTimeout: 30000,
+          pool: true,
+          maxConnections: 5,
+          maxMessages: 100,
         },
         defaults: {
-          from: `"${configService.get('MAIL_FROM_NAME')}" <${configService.get('MAIL_FROM')}>`,
+          from: `"${configService.get<string>('MAIL_FROM_NAME')}" <${configService.get<string>('MAIL_FROM')}>`,
         },
       }),
+      inject: [ConfigService],
     }),
   ],
-  controllers: [MailController],
   providers: [MailService],
   exports: [MailService],
 })
