@@ -15,10 +15,13 @@ import { MailerModule } from '@nestjs-modules/mailer';
           family: 4,
           host: configService.get('MAIL_HOST'),
           port: configService.get('MAIL_PORT'),
-          secure: configService.get('MAIL_PORT') === 465, // true para 465, false para otros puertos
+          secure: true, // true para 465, false para otros puertos
           auth: {
-            user: configService.get('MAIL_USER'),
+            user:'apikey',
             pass: configService.get('MAIL_PASSWORD'),
+          },
+          tls: {
+            rejectUnauthorized: false,
           },
         },
         defaults: {
