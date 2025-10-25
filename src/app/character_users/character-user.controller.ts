@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { CreateCharacterUserDto } from "./dto/CharacterUserDto";
 import { CharacterUserService } from "./character-user.service";
 
@@ -12,8 +12,9 @@ export class CharacterUserController {
   }
   @Get(":firebase_uid")
   async getAllCharacterUsers(
-    @Query('firebase_uid') firebase_uid: string,
+    @Param('firebase_uid') firebase_uid: string,
   ) {
+    console.log('fira base_uid');
      console.log(firebase_uid);
      return  await this.characterUserService.findByUserAndCharacter(firebase_uid);
   }
