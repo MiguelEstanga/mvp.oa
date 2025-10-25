@@ -12,12 +12,12 @@ export class MailService extends BaseService {
 
   constructor(private readonly configService: ConfigService) {
     super();
-    
+
     const apiKey = this.configService.get<string>('RESEND_API_KEY');
     if (!apiKey) {
       throw new Error('RESEND_API_KEY no está configurada');
     }
-    
+
     this.resend = new Resend(apiKey);
     this.logger.log('✅ Resend inicializado correctamente');
   }
@@ -41,7 +41,9 @@ export class MailService extends BaseService {
         throw new Error(error.message);
       }
 
-      this.logger.log(`✅ Código de recuperación enviado a ${email} (ID: ${data?.id})`);
+      this.logger.log(
+        `✅ Código de recuperación enviado a ${email} (ID: ${data?.id})`,
+      );
       return this.success('Código de recuperación enviado correctamente', {
         email,
         sent: true,
@@ -62,63 +64,146 @@ export class MailService extends BaseService {
   ): Promise<ApiResponse<any>> {
     try {
       const html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
-            <div style="text-align: center; padding: 20px 0;">
-              <div style="background-color: #28a745; width: 80px; height: 80px; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-                <span style="color: white; font-size: 48px;">✓</span>
-              </div>
-              <h1 style="color: #333; margin: 20px 0 10px 0;">Contraseña actualizada</h1>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #FFFFFF;
+            border-radius: 8px;
+            overflow: hidden;
+          }
+          .header {
+            background-color: #E5123D;
+            padding: 32px 24px;
+            text-align: center;
+          }
+          .logo {
+            color: #FFFFFF;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 1px;
+          }
+          .content {
+            padding: 40px 24px;
+          }
+          .icon-container {
+            text-align: center;
+            margin-bottom: 24px;
+          }
+          .icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 80px;
+            background-color: #E5123D;
+            border-radius: 50%;
+            font-size: 48px;
+          }
+          .title {
+            font-size: 24px;
+            color: #000000;
+            text-align: center;
+            margin-bottom: 24px;
+            font-weight: 600;
+          }
+          .message {
+            font-size: 15px;
+            color: #000000;
+            line-height: 1.6;
+            margin-bottom: 24px;
+          }
+          .info-box {
+            background-color: #f5f5f5;
+            border-left: 4px solid #E5123D;
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 4px;
+          }
+          .info-box p {
+            font-size: 14px;
+            color: #000000;
+            margin: 8px 0;
+          }
+          .info-box strong {
+            color: #E5123D;
+          }
+          .warning-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 16px;
+            margin: 24px 0;
+            border-radius: 4px;
+          }
+          .warning-box p {
+            font-size: 14px;
+            color: #856404;
+            margin: 4px 0;
+          }
+          .footer {
+            padding: 24px;
+            text-align: center;
+            color: #666666;
+            font-size: 13px;
+            border-top: 1px solid #e0e0e0;
+          }
+          .footer p {
+            margin: 4px 0;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">MVP.IA</div>
+          </div>
+          
+          <div class="content">
+            <div class="icon-container">
+              <div class="icon">✓</div>
             </div>
             
-            <div style="padding: 20px; line-height: 1.6; color: #666;">
-              <p>Hola <strong>${name || 'Usuario'}</strong>,</p>
-              
-              <p>Tu contraseña ha sido cambiada exitosamente.</p>
-              
-              <div style="background-color: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0; border-radius: 4px;">
-                <p style="margin: 0; color: #155724;">
-                  ✅ <strong>Cambio exitoso:</strong> Tu cuenta está segura y puedes iniciar sesión con tu nueva contraseña.
-                </p>
-              </div>
-              
-              <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
-                <p style="margin: 0; color: #856404;">
-                  📅 <strong>Fecha del cambio:</strong> ${new Date().toLocaleString('es-ES', { 
-                    dateStyle: 'full', 
-                    timeStyle: 'short' 
-                  })}
-                </p>
-              </div>
-              
-              <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0; border-radius: 4px;">
-                <p style="margin: 0 0 10px 0; color: #721c24;">
-                  ⚠️ <strong>¿No fuiste tú?</strong>
-                </p>
-                <p style="margin: 0; color: #721c24;">
-                  Si no realizaste este cambio, tu cuenta podría estar comprometida. 
-                  Contacta inmediatamente con nuestro soporte.
-                </p>
-              </div>
-              
-              <p style="margin-top: 30px;">Gracias por mantener tu cuenta segura.</p>
-              <p>¡Saludos! 👋</p>
+            <div class="title">Contraseña actualizada</div>
+            
+            <div class="message">
+              Hola <strong>${name || 'Usuario'}</strong>,<br><br>
+              Tu contraseña ha sido cambiada exitosamente. Ya puedes iniciar sesión con tu nueva contraseña.
             </div>
             
-            <div style="text-align: center; padding: 20px; color: #999; font-size: 12px; border-top: 1px solid #eee; margin-top: 20px;">
-              <p style="margin: 5px 0;">🔒 Este es un email de seguridad automático</p>
-              <p style="margin: 5px 0;">Por favor no respondas a este mensaje</p>
+            <div class="info-box">
+              <p><strong>📅 Fecha del cambio:</strong></p>
+              <p>${new Date().toLocaleString('es-ES', {
+                dateStyle: 'full',
+                timeStyle: 'short',
+              })}</p>
+            </div>
+            
+            <div class="warning-box">
+              <p><strong>⚠️ ¿No fuiste tú?</strong></p>
+              <p>Si no realizaste este cambio, tu cuenta podría estar comprometida. Contacta inmediatamente con nuestro soporte.</p>
             </div>
           </div>
-        </body>
-        </html>
-      `;
+          
+          <div class="footer">
+            <p>🔒 Este es un email de seguridad automático</p>
+            <p>Por favor no respondas a este mensaje</p>
+            <p>© ${new Date().getFullYear()} MVP.IA - Todos los derechos reservados</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
 
       const { data, error } = await this.resend.emails.send({
         from: 'MVP.IA <onboarding@resend.dev>',
@@ -136,10 +221,7 @@ export class MailService extends BaseService {
         messageId: data?.id,
       });
     } catch (error) {
-      this.logger.error(
-        `❌ Error al enviar confirmación a ${email}:`,
-        error,
-      );
+      this.logger.error(`❌ Error al enviar confirmación a ${email}:`, error);
       return this.error('Error al enviar confirmación', error);
     }
   }
