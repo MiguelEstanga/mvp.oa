@@ -31,6 +31,7 @@ import { BaseService } from '../core/helper/BaseResponse';
 import { Logger } from '@nestjs/common';
 import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import { VerifyCodeDto } from './dto/VerifyCodeDto';
+import { ChangePasswordDto } from './dto/ChangePasswordDto';
 
 @Injectable()
 export class AuthService extends BaseService {
@@ -616,5 +617,55 @@ export class AuthService extends BaseService {
       'Hello! Are you around? 👀',
     ];
     return greetings[Math.floor(Math.random() * greetings.length)];
+  }
+
+  async changePassword(changePasswordDto:  ChangePasswordDto) {
+    const { email, newPassword, oldPassword } = changePasswordDto;
+
+    try {
+      // 1. Buscar al usuario por email
+      const user = await this.userRepository.findOne({ where: { email } });
+      if (!user) {
+        // Usa una excepción genérica para no dar pistas si el email existe o no
+        throw new NotFoundException('Usuario o contraseña incorrectos');
+      }
+
+      // 2. Verificar la contraseña antigua de forma ASÍNCRONA (Mejor rendimiento)
+      const isMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!isMatch) {
+        throw new BadRequestException('Contraseña antigua incorrecta');
+      }
+
+      // 3. Generar el hash de la nueva contraseña
+      // El factor de sal (saltRounds) de 10 es un buen valor predeterminado
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
+
+      // 4. Guardar los cambios
+      const updatedUser = await this.userRepository.save(user);
+
+      // 5. Preparar la respuesta: Excluir la contraseña (¡Mejora de seguridad!)
+      // Esto asume que tu entidad tiene una propiedad 'password'
+      const { password, ...userData } = updatedUser;
+
+      return {
+        success: true,
+        message: 'Contraseña cambiada exitosamente',
+        data: userData, // Retorna todo el usuario EXCEPTO el hash
+      };
+    } catch (error) {
+      // Registrar el error para el servidor (debugging)
+      console.error('Error al cambiar la contraseña:', error);
+
+      // Si el error es una excepción de NestJS (NotFound, BadRequest), relanzarla.
+      if (error.status) {
+        throw error;
+      }
+
+      // Para cualquier otro error (ej: error de DB), lanzar un error 500
+      throw new InternalServerErrorException(
+        'Ocurrió un error inesperado al procesar la solicitud.',
+      );
+    }
   }
 }

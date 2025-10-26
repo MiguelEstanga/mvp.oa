@@ -16,6 +16,7 @@ import { InactivityNotificationDto } from './dto/InactivityNotificationDto';
 import { ForgotPasswordDto } from './dto/ForgotPasswordDto';
 import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import { VerifyCodeDto } from './dto/VerifyCodeDto';
+import { ChangePasswordDto } from './dto/ChangePasswordDto';
 
 @Controller('auth')
 export class AuthController {
@@ -86,5 +87,11 @@ export class AuthController {
   async verifyCode(@Body() verifyCodeDto: VerifyCodeDto) {
     console.log(verifyCodeDto);
     return await this.authService.verifyCode(verifyCodeDto);
+  }
+
+  @Post('change-password')
+  async changePassword(@Body() changePasswordDto: ChangePasswordDto) {
+    console.log(changePasswordDto);
+    return await this.authService.changePassword(changePasswordDto);
   }
 }
