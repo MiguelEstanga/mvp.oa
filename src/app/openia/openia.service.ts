@@ -22,7 +22,7 @@ export class OpenAIService {
   async generateText(messages: ChatCompletionMessageParam[]): Promise<ChatCompletion> {
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo',
+        model: 'gpt-4o',
         messages: messages,
       });
       return response;
