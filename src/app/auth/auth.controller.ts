@@ -91,6 +91,7 @@ export class AuthController {
 
   @Post('change-password')
   async changePassword(@Body() changePasswordDto: ChangePasswordDto) {
+    console.log('sssssss')
     console.log(changePasswordDto);
     return await this.authService.changePassword(changePasswordDto);
   }

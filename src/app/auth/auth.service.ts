@@ -619,7 +619,7 @@ export class AuthService extends BaseService {
     return greetings[Math.floor(Math.random() * greetings.length)];
   }
 
-  async changePassword(changePasswordDto:  ChangePasswordDto) {
+  async changePassword(changePasswordDto: ChangePasswordDto) {
     const { email, newPassword, oldPassword } = changePasswordDto;
 
     try {
