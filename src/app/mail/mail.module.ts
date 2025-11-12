@@ -10,9 +10,9 @@ import { MailerModule } from '@nestjs-modules/mailer';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         transport: {
-          host: 'smtp-relay.brevo.com', // 👈 CAMBIA ESTO
-          port: 587, // 👈 Siempre 587 para Brevo
-          secure: false,
+          host: configService.get<string>('MAIL_HOST'), // smtp.gmail.com
+          port:  587, // 587
+          secure: false, // false para 587, true para 465
           auth: {
             user: configService.get<string>('MAIL_USER'),
             pass: configService.get<string>('MAIL_PASSWORD'),
@@ -34,17 +34,17 @@ import { MailerModule } from '@nestjs-modules/mailer';
       inject: [ConfigService],
     }),
   ],
-  controllers: [MailController], // 👈 Agrega esto si tienes controlador
+  controllers: [MailController],
   providers: [MailService],
   exports: [MailService],
 })
 export class MailModule {
-  constructor(private readonly configService: ConfigService) { // 👈 Inyecta ConfigService correcto
-    console.log('📧 Mail Module inicializado');
-    console.log('🔍 MAIL_HOST:', 'smtp-relay.brevo.com');
-    console.log('🔍 MAIL_PORT:', 587);
+  constructor(private readonly configService: ConfigService) {
+    console.log('📧 Mail Module inicializado con Gmail SMTP');
+    console.log('🔍 MAIL_HOST:', configService.get('MAIL_HOST'));
+    console.log('🔍 MAIL_PORT:', configService.get('MAIL_PORT'));
     console.log('🔍 MAIL_USER:', configService.get('MAIL_USER'));
-    console.log('🔍 MAIL_PASSWORD:', configService.get('MAIL_PASSWORD') ? 'OK (oculta)' : 'FALTA');
+    console.log('🔍 MAIL_PASSWORD:', configService.get('MAIL_PASSWORD') ? '✅ Configurada (oculta)' : '❌ FALTA');
     console.log('🔍 MAIL_FROM:', configService.get('MAIL_FROM'));
     console.log('🔍 MAIL_FROM_NAME:', configService.get('MAIL_FROM_NAME'));
   }

@@ -164,6 +164,7 @@ export class MessageService extends BaseService {
       ]);
       return this.success('Mensaje de prueba generado correctamente', data);
     } catch (error) {
+      console.log('error', error);
       return this.error('Error al generar el mensaje de prueba', error);
     }
   }

@@ -288,7 +288,7 @@ export class AuthService extends BaseService {
         resetCode,
         user.username || user.email,
       );
-
+      console.log(email);
       if (mail.success) {
         return this.success(
           'Si el email está registrado, recibirás un código de recuperación',

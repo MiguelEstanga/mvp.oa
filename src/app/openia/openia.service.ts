@@ -20,6 +20,7 @@ export class OpenAIService {
   // Ahora, el método acepta un array de mensajes en lugar de una sola cadena de texto.
   // Esto permite enviar el historial completo de la conversación.
   async generateText(messages: ChatCompletionMessageParam[]): Promise<ChatCompletion> {
+    console.log('messages', messages);
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o',

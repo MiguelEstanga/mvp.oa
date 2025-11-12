@@ -10,7 +10,7 @@ export class MailService extends BaseService {
 
   constructor(private readonly mailerService: MailerService) {
     super();
-    this.logger.log('✅ MailService inicializado con Brevo SMTP');
+    this.logger.log('✅ MailService inicializado con Gmail SMTP');
   }
 
   async sendPasswordResetCode(
@@ -23,6 +23,7 @@ export class MailService extends BaseService {
 
       await this.mailerService.sendMail({
         to: email,
+        from: process.env.MAIL_FROM || 'noreply@yourdomain.com', // Tu email de Gmail
         subject: '🔒 Código de recuperación de contraseña',
         html,
       });
@@ -190,6 +191,7 @@ export class MailService extends BaseService {
 
       await this.mailerService.sendMail({
         to: email,
+        from: process.env.MAIL_FROM || 'noreply@yourdomain.com', // Tu email de Gmail
         subject: '✅ Tu contraseña ha sido actualizada',
         html,
       });
