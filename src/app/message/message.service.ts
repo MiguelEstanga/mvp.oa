@@ -52,7 +52,7 @@ export class MessageService extends BaseService {
     try {
       const promptsPath = path.join(process.cwd(), 'src', 'app', 'prompts');
 
-      // Cargar personalidades base
+      // Load base personalities
       const mvps = ['kai', 'rin'];
       const archetypes = [
         'core_personality',
@@ -70,13 +70,12 @@ export class MessageService extends BaseService {
             this.personalityPrompts.set(`${mvp}_${archetype}`, content);
             this.logger.log(`Loaded personality: ${mvp}_${archetype}`);
           } catch (error) {
-            //this.logger.warn(`Could not load personality file: ${mvp}_${archetype}`);
             this.logger.warn(`Could not load personality file: ${promptsPath}`);
           }
         }
       }
 
-      // Cargar bond levels
+      // Load bond levels
       for (let i = 1; i <= 10; i++) {
         try {
           const filePath = path.join(
@@ -101,25 +100,27 @@ export class MessageService extends BaseService {
     archetype: string,
     bondLevel: number,
     name: string,
+    userName: string,
   ): string {
-    // Normalizar nombres de archivos
+    // Normalize file names
     const normalizedArchetype =
       archetype === 'core' ? 'core_personality' : archetype;
 
-    // Obtener prompt de personalidad
+    // Get personality prompt
     const personalityKey = `${mvpType}_${normalizedArchetype}`;
     const personalityPrompt =
       this.personalityPrompts.get(personalityKey) ||
       this.personalityPrompts.get(`${mvpType}_core_personality`) ||
       `You are ${name}, a helpful AI assistant.`;
     console.log('personalityPrompt', personalityPrompt);
-    // Obtener prompt de bond level
+    
+    // Get bond level prompt
     const bondPrompt =
       this.personalityPrompts.get(`bond_level_${bondLevel}`) ||
       this.personalityPrompts.get('bond_level_1') ||
       'You are just getting to know this user.';
 
-    // Combinar prompts
+    // Combine prompts
     return `${personalityPrompt}
       --- BOND LEVEL CONTEXT ---
           Current Bond Level: ${bondLevel}
@@ -131,6 +132,7 @@ export class MessageService extends BaseService {
       - Stay true to your character while being helpful
       - Messages can only have a minimum of 45 words.
       - your name is ${name}
+      - and my name is ${userName}
       `;
   }
 
@@ -148,9 +150,9 @@ export class MessageService extends BaseService {
       this.logger.log('messages', messages);
       this.logger.log('messages', messages.length);
 
-      return this.success('Mensajes recuperados correctamente', messages);
+      return this.success('Messages retrieved successfully', messages);
     } catch (error) {
-      return this.error('Error al recuperar los mensajes', error);
+      return this.error('Error retrieving messages', error);
     }
   }
 
@@ -159,13 +161,13 @@ export class MessageService extends BaseService {
       const data = await this.openAIService.generateText([
         {
           role: 'user',
-          content: 'Hola, ¿cómo estás?',
+          content: 'Hello, how are you?',
         },
       ]);
-      return this.success('Mensaje de prueba generado correctamente', data);
+      return this.success('Test message generated successfully', data);
     } catch (error) {
       console.log('error', error);
-      return this.error('Error al generar el mensaje de prueba', error);
+      return this.error('Error generating test message', error);
     }
   }
 
@@ -178,9 +180,9 @@ export class MessageService extends BaseService {
           firebase_uid,
         },
       });
-      return this.success('Mensajes recuperados correctamente', messages);
+      return this.success('Messages retrieved successfully', messages);
     } catch (error) {
-      return this.error('Error al recuperar los mensajes', error);
+      return this.error('Error retrieving messages', error);
     }
   }
 
@@ -193,7 +195,7 @@ export class MessageService extends BaseService {
       });
       this.logger.log('user', user);
       if (!user) {
-        // Crear configuración por defecto si el usuario no existe
+        // Create default configuration if user doesn't exist
         return {
           mvp_type: 'kai',
           personality_archetype: 'core',
@@ -230,21 +232,22 @@ export class MessageService extends BaseService {
     try {
       let customConversationId: number;
 
-      // 1. Obtener configuración de personalidad del usuario
+      // 1. Get user personality configuration
       const userConfig = await this.getUserPersonalityConfig(body.firebase_uid);
 
       const { data: character } =
         await this.characterUserService.findByUserAndCharacter(
           body.firebase_uid,
         );
-
+      
+      
       const mvpType = body.mvp_type || userConfig.mvp_type;
       const archetype =
         body.personality_archetype || userConfig.personality_archetype;
       const bondLevel = userConfig.bond_level;
       const personalityActive = userConfig.personality_active;
 
-      // 3. Si no hay conversation_id, crear nueva conversación
+      // 2. If there's no conversation_id, create new conversation
       if (!body.conversation_id) {
         const newConversationResponse =
           await this.conversationService.createConversation({
@@ -253,14 +256,14 @@ export class MessageService extends BaseService {
           });
         const { data } = newConversationResponse;
         if (!data || !data.id) {
-          throw new Error('Error al crear una nueva conversación.');
+          throw new Error('Error creating new conversation.');
         }
         customConversationId = data.id;
       } else {
         customConversationId = body.conversation_id;
       }
 
-      // 4. Recuperar historial de mensajes
+      // 3. Retrieve message history
       const conversationHistory = await this.messageRepository.find({
         where: {
           conversation_id: customConversationId,
@@ -270,16 +273,21 @@ export class MessageService extends BaseService {
         },
       });
 
-      // 5. Construir mensajes para OpenAI
+      // 4. Build messages for OpenAI
       const messagesForOpenAI: ChatCompletionMessageParam[] = [];
-
+      const user = await this.userRepository.findOne({
+        where: { firebase_uid: body.firebase_uid },
+      });
+      console.log('user', user);
       if (personalityActive) {
         const personalityPrompt = this.getPersonalityPrompt(
           mvpType,
           archetype,
           bondLevel,
           character.name,
+          user!.username  ,
         );
+         
         console.log('personalityPrompt', personalityPrompt);
         messagesForOpenAI.push({
           role: 'system',
@@ -287,7 +295,7 @@ export class MessageService extends BaseService {
         });
       }
 
-      // Agregar historial de conversación
+      // Add conversation history
       messagesForOpenAI.push(
         ...conversationHistory.map((msg) => ({
           role: msg.role as 'user' | 'assistant',
@@ -295,22 +303,23 @@ export class MessageService extends BaseService {
         })),
       );
 
-      // Agregar nuevo mensaje del usuario
+      // Add new user message
       messagesForOpenAI.push({
         role: 'user',
         content: body.content,
       });
-      console.log('generate menssage' , messagesForOpenAI);
-      // 6. Generar respuesta
+      console.log('generate message', messagesForOpenAI);
+      
+      // 5. Generate response
       const messageBotResponse =
         await this.openAIService.generateText(messagesForOpenAI);
       const contentBot = messageBotResponse.choices[0].message?.content;
 
       if (!contentBot) {
-        throw new Error('No se pudo obtener una respuesta válida de la IA.');
+        throw new Error('Could not get a valid response from AI.');
       }
 
-      // 7. Guardar mensaje del usuario
+      // 6. Save user message
       const userMessage = this.messageRepository.create({
         role: MessageRole.USER,
         content: body.content,
@@ -319,7 +328,7 @@ export class MessageService extends BaseService {
       });
       const savedUserMessage = await queryRunner.manager.save(userMessage);
 
-      //8. Guardar mensaje del bot con metadata de personalidad
+      // 7. Save bot message with personality metadata
       const botMessage = this.messageRepository.create({
         role: MessageRole.BOT,
         content: contentBot,
@@ -331,28 +340,30 @@ export class MessageService extends BaseService {
         bond_level_at_time: bondLevel,
       });
       const savedBotMessage = await queryRunner.manager.save(botMessage);
-      // 9. Actualizar bond level
+      
+      // 8. Update bond level
       const characterUsers = await this.bondService.updateBondFromMessage(
         body.firebase_uid,
         body.content,
       );
 
-      // 10. Confirmar transacción
+      // 9. Commit transaction
       await queryRunner.commitTransaction();
-      console.log('puntos de experiencia', characterUsers);
-      return this.success('Mensajes enviados y guardados correctamente', [
+      console.log('experience points', characterUsers);
+      
+      return this.success('Messages sent and saved successfully', [
         savedBotMessage,
         characterUsers,
       ]);
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      return this.error('Error al enviar y guardar el mensaje', error);
+      return this.error('Error sending and saving message', error);
     } finally {
       await queryRunner.release();
     }
   }
 
-  // Método para testing de personalidades
+  // Method for testing personalities
   async testPersonality(body: {
     message: string;
     mvp_type: 'kai' | 'rin';
@@ -365,6 +376,7 @@ export class MessageService extends BaseService {
         body.archetype,
         body.bond_level,
         'test',
+        'test'
       );
 
       const messagesForOpenAI: ChatCompletionMessageParam[] = [
@@ -382,16 +394,16 @@ export class MessageService extends BaseService {
       const content = response.choices[0].message?.content;
 
       if (!content) {
-        throw new Error('No se pudo generar respuesta de prueba.');
+        throw new Error('Could not generate test response.');
       }
 
-      return this.success('Respuesta de prueba generada', content);
+      return this.success('Test response generated', content);
     } catch (error) {
-      return this.error('Error al generar respuesta de prueba', error);
+      return this.error('Error generating test response', error);
     }
   }
 
-  async insertMessage(message:MessageInsertTypes ) {
+  async insertMessage(message: MessageInsertTypes) {
     try {
       const newMessage = this.messageRepository.create({
         role: message.role,
@@ -400,9 +412,9 @@ export class MessageService extends BaseService {
         conversation_id: message.conversation_id,
       });
       const savedMessage = await this.messageRepository.save(newMessage);
-      return this.success('Mensaje guardado correctamente', savedMessage);
+      return this.success('Message saved successfully', savedMessage);
     } catch (error) {
-      return this.error('Error al guardar mensaje', error);
+      return this.error('Error saving message', error);
     }
   }
 }

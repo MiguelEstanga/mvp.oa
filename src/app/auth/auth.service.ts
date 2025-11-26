@@ -191,6 +191,7 @@ export class AuthService extends BaseService {
         email: userRecord.email,
         statte: 1,
         password: hashedPassword,
+        bond_level:1
       };
 
       const user = await this.userRepository.save(newUserData);

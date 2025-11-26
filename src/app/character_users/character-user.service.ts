@@ -39,7 +39,7 @@ export class CharacterUserService extends BaseService {
       const newCharacterUser = this.characterUserRepository.create({
         character_id: characterUser.character_id,
         name: characterUser.character_name,
-        bond_level: 0,
+        bond_level: 1,
         bond_points: 0,
         firebase_uid: characterUser.firebase_uid,
       });
