@@ -11,7 +11,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true, // Lanzar error si hay propiedades no permitidas
       transform: true, // Transformar automáticamente los tipos
       transformOptions: {
-        enableImplicitConversion: true, // Convertir tipos automáticamente
+        enableImplicitConversion: true, // Convertir tipos automáticamenteisndnjdnf
       },
     }),
   );
