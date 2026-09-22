@@ -258,6 +258,15 @@ export class AuthService extends BaseService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
+  private isResetCodeValid(user: User, code: string): boolean {
+    return (
+      !!user.reset_password_code &&
+      user.reset_password_code === code &&
+      !!user.reset_password_expires &&
+      user.reset_password_expires.getTime() > Date.now()
+    );
+  }
+
   async forgotPassword(
     forgotPasswordDto: ForgotPasswordDto,
   ): Promise<ApiResponse<any>> {
@@ -312,7 +321,7 @@ export class AuthService extends BaseService {
         return this.error('No existe un usuario con ese email');
       }
 
-      if (user.reset_password_code !== code) {
+      if (!this.isResetCodeValid(user, code)) {
         return this.error(
           'El código de verificación no coincide con el registro',
         );
@@ -340,7 +349,7 @@ export class AuthService extends BaseService {
         },
       });
 
-      if (!user || user.reset_password_code !== code) {
+      if (!user || !this.isResetCodeValid(user, code)) {
         throw new BadRequestException('code expired or invalid');
       }
 

@@ -5,10 +5,10 @@ import { User } from '../auth/entities/user.entity';
 import { BaseService } from '../core/helper/BaseResponse';
 import { UpdateMvpDto } from './dto/update-mvp';
 import { UpdatePersonalityDto } from './dto/update-personality';
-import { ApiResponse } from '../core/types/ResponseType';
 import { UpdateUserDto } from './dto/update-user';
 import { UpdateDescriptionDto } from './dto/update-description.dto';
- 
+import { UserResponseMapper } from './mapper/user-mapper';
+
 @Injectable()
 export class UserService extends BaseService {
   constructor(
@@ -23,7 +23,10 @@ export class UserService extends BaseService {
       const user = await this.userRepository.findOne({
         where: { firebase_uid },
       });
-      return this.success('Usuario obtenido correctamente', user);
+      return this.success(
+        'Usuario obtenido correctamente',
+        UserResponseMapper.toSafeUser(user),
+      );
     } catch (error) {
       return this.error('Error al obtener el usuario', error);
     }
@@ -34,7 +37,10 @@ export class UserService extends BaseService {
       const user = await this.userRepository.findOne({
         where: { email },
       });
-      return this.success('Usuario obtenido correctamente', user);
+      return this.success(
+        'Usuario obtenido correctamente',
+        UserResponseMapper.toSafeUser(user),
+      );
     } catch (error) {
       return this.error('Error al obtener el usuario', error);
     }
@@ -50,7 +56,10 @@ export class UserService extends BaseService {
       }
       user.mvp_type = body.mvp_type;
       await this.userRepository.save(user);
-      return this.success('MVP actualizado correctamente', user);
+      return this.success(
+        'MVP actualizado correctamente',
+        UserResponseMapper.toSafeUser(user),
+      );
     } catch (error) {
       return this.error('Error al actualizar el usuario', error);
     }
@@ -78,38 +87,26 @@ export class UserService extends BaseService {
     }
   }
 
-  async editUser(data: UpdateUserDto): Promise<ApiResponse<User>> {
+  async editUser(data: UpdateUserDto) {
     try {
       const { uid, ...updateData } = data;
-      console.log(updateData);
-      // 1. Verificar si el usuario existe antes de actualizar
-      const userExists = await this.userRepository.exists({
-        where: { firebase_uid: 'ZW2fpa5EvcQQbLH1ogYhw7a0byp1' },
-      });
-
-      console.log(userExists);
-
-      if (!userExists) {
+      if (!uid) {
         return this.error('User not found', null);
       }
 
-      // 2. Usar el método update para una actualización atómica y eficiente
-      await this.userRepository.update(
-        { firebase_uid: 'ZW2fpa5EvcQQbLH1ogYhw7a0byp1' },
-        updateData,
-      );
-
-      // 3. Opcional: Obtener el usuario actualizado si es necesario
-      const updatedUser = await this.userRepository.findOne({
-        where: { firebase_uid: 'ZW2fpa5EvcQQbLH1ogYhw7a0byp1' },
+      const user = await this.userRepository.findOne({
+        where: { firebase_uid: uid },
       });
-      if (!updatedUser) {
+      if (!user) {
         return this.error('User not found', null);
       }
+
+      Object.assign(user, updateData);
+      await this.userRepository.save(user);
 
       return this.success(
         'User updated correctly',
-        updatedUser,
+        UserResponseMapper.toSafeUser(user),
       );
     } catch (error) {
       return this.error('Error updating user', error);
@@ -128,7 +125,10 @@ export class UserService extends BaseService {
 
       user.descriptions = body.description;
       await this.userRepository.save(user);
-      return this.success('Descripcion actualizada correctamente', user);
+      return this.success(
+        'Descripcion actualizada correctamente',
+        UserResponseMapper.toSafeUser(user),
+      );
     } catch (error) {
       return this.error('Error al actualizar el usuario', error);
     }
