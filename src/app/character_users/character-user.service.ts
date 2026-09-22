@@ -7,6 +7,7 @@ import { CreateCharacterUserDto } from './dto/CharacterUserDto';
 import { BaseService } from '../core/helper/BaseResponse';
 import { ApiResponse } from '../core/types/ResponseType';
 import { AuthService } from '../auth/auth.service';
+import { UserResponseMapper } from '../user/mapper/user-mapper';
 
 @Injectable()
 export class CharacterUserService extends BaseService {
@@ -30,10 +31,10 @@ export class CharacterUserService extends BaseService {
         relations: ['gamerCharacter', 'user'],
       });
       if (existingCharacterUser) {
-        return this.success(
-          'CharacterUser obtenido correctamente',
-          existingCharacterUser,
-        );
+        return this.success('CharacterUser obtenido correctamente', {
+          ...existingCharacterUser,
+          user: UserResponseMapper.toSafeUser(existingCharacterUser.user),
+        });
       }
 
       const newCharacterUser = this.characterUserRepository.create({
