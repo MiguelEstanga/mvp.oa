@@ -20,6 +20,7 @@ import { DataSource, FindOptionsOrderValue } from 'typeorm';
 import { BondService } from '../bond_service/BondService.service';
 import { User } from '../auth/entities/user.entity';
 import { CharacterUserService } from '../character_users/character-user.service';
+import { CharacterUser } from '../character_users/entitis/character-user.entiti';
 
 interface UserPersonalityConfig {
   mvp_type: string;
@@ -111,13 +112,13 @@ export class MessageService extends BaseService {
     }
   }
 
-  private getPersonalityPrompt(
+  private async getPersonalityPrompt(
     mvpType: string,
     archetype: string,
     bondLevel: number,
     name: string,
     userName: string,
-  ): string {
+  ): Promise<string> {
     // Normalize file names
     const normalizedArchetype =
       archetype === 'core' ? 'core_personality' : archetype;
@@ -135,7 +136,8 @@ export class MessageService extends BaseService {
       this.personalityPrompts.get('bond_level_1') ||
       'You are just getting to know this user.';
 
-    const mainPersonalityPrompt = this.loadPromptFile('cerebro/cerebro.txt');
+    const mainPersonalityPrompt =
+      (await this.loadPromptFile('cerebro/cerebro.txt')) ?? '';
     // Combine prompts
     return `${personalityPrompt}
       --- BOND LEVEL CONTEXT ---
@@ -360,6 +362,10 @@ export class MessageService extends BaseService {
       ]);
 
       const mvpType = body.mvp_type || userConfig.mvp_type;
+      // Users who haven't picked a character yet have no users_characters row,
+      // so fall back to the MVP's default name instead of crashing.
+      const characterName =
+        character?.name || (mvpType === 'rin' ? 'Rin' : 'Kai');
       const archetype =
         body.personality_archetype || userConfig.personality_archetype;
       const bondLevel = userConfig.bond_level;
@@ -396,11 +402,11 @@ export class MessageService extends BaseService {
       const messagesForOpenAI: ChatCompletionMessageParam[] = [];
 
       if (personalityActive) {
-        let personalityPrompt = this.getPersonalityPrompt(
+        let personalityPrompt = await this.getPersonalityPrompt(
           mvpType,
           archetype,
           bondLevel,
-          character.name,
+          characterName,
           username,
         );
 
@@ -421,7 +427,7 @@ This is a conversation starter meant to be: ${quickSparkContext}
 IMPORTANT QUICK SPARK GUIDELINES:
 - Engage with this prompt naturally and enthusiastically
 - Tailor your response specifically to their interest in ${body.quick_spark_interest}
-- Maintain your personality (${character.name} as ${archetype}) while exploring this topic
+- Maintain your personality (${characterName} as ${archetype}) while exploring this topic
 - Make it feel like a spontaneous, meaningful conversation
 - Show genuine curiosity and insight about ${body.quick_spark_interest}
 - Don't mention that this is a "Quick Spark" - just dive in naturally
@@ -490,11 +496,19 @@ IMPORTANT QUICK SPARK GUIDELINES:
       });
       const savedBotMessage = await queryRunner.manager.save(botMessage);
 
-      // 8. Update bond level
-      const characterUsers = await this.bondService.updateBondFromMessage(
-        body.firebase_uid,
-        body.content,
-      );
+      // 8. Update bond level. A bond failure (e.g. no character row yet)
+      // must not throw away a message the AI already answered.
+      let characterUsers: CharacterUser | null = null;
+      try {
+        characterUsers = await this.bondService.updateBondFromMessage(
+          body.firebase_uid,
+          body.content,
+        );
+      } catch (bondError) {
+        this.logger.warn(
+          `Bond update skipped for ${body.firebase_uid}: ${bondError.message}`,
+        );
+      }
 
       // 9. Commit transaction
       await queryRunner.commitTransaction();
@@ -514,7 +528,7 @@ IMPORTANT QUICK SPARK GUIDELINES:
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error('❌ Error in createMessage:', error);
-      return this.error('Error sending and saving message', error);
+      return this.error('Error sending and saving message', error?.message);
     } finally {
       await queryRunner.release();
     }
@@ -528,7 +542,7 @@ IMPORTANT QUICK SPARK GUIDELINES:
     bond_level: number;
   }): Promise<ApiResponse<string>> {
     try {
-      const personalityPrompt = this.getPersonalityPrompt(
+      const personalityPrompt = await this.getPersonalityPrompt(
         body.mvp_type,
         body.archetype,
         body.bond_level,
